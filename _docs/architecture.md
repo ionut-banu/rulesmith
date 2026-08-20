@@ -1,10 +1,6 @@
-# Data Quality Rule Builder — Design
+# Data Quality Rule Builder — Architecture
 
-## Summary
-
-Web app for registering datasets, declaring row-level data-quality rules
-against them, and checking each new upload against those rules. See
-`_docs/plan.md` for the full product requirements this design implements.
+Implements the product described in `plan.md`.
 
 ## Tech stack
 
@@ -111,8 +107,8 @@ Single FastAPI app in three layers:
 
 ## Open questions (deliberately deferred per the plan)
 
-These are unchanged from `_docs/plan.md` and are not resolved by this
-design; they need answers before the tasks that touch them:
+These are unchanged from `plan.md` and are not resolved by this document;
+they need answers before the tasks that touch them:
 
 - Maximum upload size, and whether large files need background processing
   instead of synchronous handling during the upload request.
