@@ -27,6 +27,16 @@ def load_table(path: str | Path, format: TableFormat) -> pd.DataFrame:
     objects (i.e. ``pandas.read_json(path, orient="records")`` shape) --
     a single JSON object, or any other JSON shape, is not supported.
 
+    Caveat -- zero-row JSON files: a bare empty JSON array (``[]``) is the
+    only way to represent zero rows in this array-of-objects shape, and it
+    carries no field/column information at all. Loading such a file
+    therefore returns an empty DataFrame with **no columns**, unlike a
+    zero-row CSV or Parquet file, which retain their header/schema. This is
+    a limitation of the JSON array-of-records shape itself, not a bug: there
+    is no schema to recover from ``[]``. Callers that need to distinguish
+    "empty JSON table" from "empty JSON table with known columns" must track
+    the expected columns separately.
+
     The source file's row order is preserved exactly: no reordering,
     sorting, or index resets are performed.
 

@@ -78,10 +78,17 @@ def test_headers_only_csv_loads_as_empty_dataframe_with_columns():
     assert len(df) == 0
 
 
-def test_zero_row_json_loads_as_empty_dataframe():
+def test_zero_row_json_loads_as_empty_dataframe_with_no_columns():
+    # `[]` is the only way to represent zero rows in the required
+    # array-of-records JSON shape, and it carries no column/schema
+    # information at all -- unlike zero-row CSV/Parquet, which retain their
+    # header/schema. So, unlike the CSV/Parquet zero-row cases, this
+    # documents (rather than hides) the fact that no columns are recovered.
+    # See the caveat in `load_table`'s docstring.
     df = load_table(FIXTURES / "zero_rows.json", "json")
 
     assert len(df) == 0
+    assert list(df.columns) == []
 
 
 def test_zero_row_parquet_loads_as_empty_dataframe_with_columns():
