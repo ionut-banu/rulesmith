@@ -14,7 +14,7 @@ class MissingColumnError(Exception):
         super().__init__(f"expression references unknown column: {column_name!r}")
 
 
-def _referenced_names(expression: str) -> set[str]:
+def referenced_columns(expression: str) -> set[str]:
     try:
         tree = ast.parse(expression, mode="eval")
     except SyntaxError as exc:
@@ -33,7 +33,7 @@ def _referenced_names(expression: str) -> set[str]:
 
 
 def evaluate(df: pd.DataFrame, expression: str) -> pd.Series:
-    missing = _referenced_names(expression) - set(df.columns)
+    missing = referenced_columns(expression) - set(df.columns)
     if missing:
         raise MissingColumnError(sorted(missing)[0])
 
