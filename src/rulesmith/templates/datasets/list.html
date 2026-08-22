@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Datasets - Rulesmith{% endblock %}
+
+{% block content %}
+    <h2>Datasets</h2>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if datasets %}
+        <ul class="dataset-list">
+            {% for dataset in datasets %}
+                <li>
+                    <a href="/datasets/{{ dataset.id }}">{{ dataset.name }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No datasets yet. Create one below.</p>
+    {% endif %}
+
+    <form method="post" action="/datasets">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="{{ name or '' }}">
+        <button type="submit">Create dataset</button>
+    </form>
+{% endblock %}

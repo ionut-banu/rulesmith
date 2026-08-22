@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dataset.name }} - Rulesmith{% endblock %}
+
+{% block content %}
+    <h2>{{ dataset.name }}</h2>
+    <p class="created-at">Created at: {{ dataset.created_at }}</p>
+
+    <section id="rules">
+        <h3>Rules</h3>
+        <p>No rules yet.</p>
+    </section>
+
+    <section id="runs">
+        <h3>Runs</h3>
+        <p>No runs yet.</p>
+    </section>
+{% endblock %}
