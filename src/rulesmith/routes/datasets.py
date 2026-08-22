@@ -1,8 +1,6 @@
 """Routes for listing, creating, and viewing datasets."""
 
-from urllib.parse import parse_qsl
-
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -24,14 +22,9 @@ def list_datasets(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/datasets")
-async def create_dataset(request: Request, db: Session = Depends(get_db)):
-    # Parsed manually (instead of FastAPI's Form(...)) to avoid adding the
-    # python-multipart dependency for what is a plain url-encoded POST from
-    # an HTML form with no file upload and no custom enctype.
-    body = (await request.body()).decode()
-    fields = dict(parse_qsl(body, keep_blank_values=True))
-    name = fields.get("name", "")
-
+def create_dataset(
+    request: Request, name: str = Form(""), db: Session = Depends(get_db)
+):
     stripped = name.strip()
     if not stripped:
         datasets = db.query(Dataset).order_by(Dataset.id).all()
