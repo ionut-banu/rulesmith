@@ -5,7 +5,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -29,7 +29,6 @@ _EXTENSION_TO_FORMAT = {".csv": "csv", ".json": "json", ".parquet": "parquet"}
 @router.post("/datasets/{dataset_id}/uploads")
 async def upload_file(
     dataset_id: int,
-    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -46,12 +45,12 @@ async def upload_file(
             detail=f"Unrecognized file extension: {ext!r}. Expected .csv, .json, or .parquet.",
         )
 
-    content_length = request.headers.get("content-length")
-    if content_length is not None and int(content_length) > MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="File exceeds the 20 MB upload limit.")
-
     # Read with a cap so an oversized file is never fully buffered, let
-    # alone written to disk, regardless of what Content-Length claimed.
+    # alone written to disk. Enforcing on the actual bytes read (rather
+    # than the request's Content-Length) matters because Content-Length
+    # reflects the whole multipart body, including boundary/header
+    # framing overhead -- comparing that total against the file-size
+    # limit would reject a file of exactly the allowed size.
     contents = await file.read(MAX_UPLOAD_SIZE + 1)
     if len(contents) > MAX_UPLOAD_SIZE:
         raise HTTPException(status_code=413, detail="File exceeds the 20 MB upload limit.")

@@ -157,6 +157,37 @@ def test_unrecognized_extension_is_rejected(client):
         assert list(upload_dir.rglob("*")) == []
 
 
+def _exact_size_csv(size: int) -> bytes:
+    """A valid CSV of exactly `size` bytes."""
+    header = b"name,age\n"
+    row = b"a,1\n"
+    body = bytearray(header)
+    while len(body) + len(row) <= size:
+        body += row
+    remaining = size - len(body)
+    if remaining > 0:
+        # Pad the final row's name field to make up the exact remainder.
+        filler = "a" * (remaining - len(",1\n"))
+        body += f"{filler},1\n".encode()
+    assert len(body) == size
+    return bytes(body)
+
+
+def test_file_at_exactly_the_size_cap_is_accepted(client):
+    dataset_id = _make_dataset(client)
+    content = _exact_size_csv(20 * 1024 * 1024)
+
+    response = client.post(
+        f"/datasets/{dataset_id}/uploads",
+        files={"file": ("exact.csv", content, "text/csv")},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    with client.session_factory() as session:
+        assert session.query(Upload).count() == 1
+
+
 def test_oversized_file_is_rejected(client):
     dataset_id = _make_dataset(client)
     big_content = b"a" * (20 * 1024 * 1024 + 1)
