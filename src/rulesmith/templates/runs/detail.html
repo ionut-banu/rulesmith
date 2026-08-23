@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Run {{ run.id }} - {{ dataset.name }} - Rulesmith{% endblock %}
+
+{% block content %}
+    <p><a href="/datasets/{{ dataset.id }}">Back to {{ dataset.name }}</a></p>
+
+    <h2>Run {{ run.id }}</h2>
+    <p class="run-meta">
+        Ran at: {{ run.created_at }} &mdash; File: {{ upload.original_filename }}
+    </p>
+
+    {% if rule_results|length == 0 %}
+        <p class="run-summary run-summary--no-rules">No rules were evaluated (this dataset has no rules).</p>
+    {% elif failed == 0 and broken == 0 %}
+        <p class="run-summary run-summary--clean">Clean pass: {{ passed }} passed, {{ failed }} failed, {{ broken }} broken.</p>
+    {% else %}
+        <p class="run-summary run-summary--not-clean">{{ passed }} passed, {{ failed }} failed, {{ broken }} broken.</p>
+    {% endif %}
+
+    <ul class="rule-result-list">
+        {% for result in rule_results %}
+            <li class="rule-result rule-result--{{ result.verdict }}">
+                <strong>{{ result.rule_name }}</strong>
+                {% if result.verdict == "pass" %}
+                    <span class="verdict verdict-pass">&#10003; PASS</span>
+                    <span class="counts">{{ result.pass_count }} passed, {{ result.fail_count }} failed</span>
+                {% elif result.verdict == "fail" %}
+                    <span class="verdict verdict-fail">&#10007; FAIL</span>
+                    <span class="counts">{{ result.pass_count }} passed, {{ result.fail_count }} failed</span>
+                {% else %}
+                    <span class="verdict verdict-broken">&#9888; BROKEN</span>
+                    <span class="broken-reason">{{ result.broken_reason }}</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
