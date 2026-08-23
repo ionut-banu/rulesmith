@@ -29,6 +29,45 @@
         <p><a href="/datasets/{{ dataset.id }}/rules/new">New rule</a></p>
     </section>
 
+    <section id="trend">
+        <h3>Row pass rate trend</h3>
+        <p class="trend-description">
+            Row-level pass rate per run: passing rows &divide; evaluated rows
+            (not a share of rules passing). Rows under broken rules are
+            excluded from both counts, and runs with zero evaluated rows are
+            left off the trend.
+        </p>
+
+        {% if chart_points %}
+            <svg viewBox="0 0 {{ chart_width }} {{ chart_height }}" width="100%" height="{{ chart_height }}"
+                 role="img" aria-label="Row pass rate trend across runs, oldest to newest" class="trend-chart">
+                <line x1="{{ chart_padding }}" y1="{{ chart_padding }}"
+                      x2="{{ chart_padding }}" y2="{{ chart_height - chart_padding }}" class="trend-axis" />
+                <line x1="{{ chart_padding }}" y1="{{ chart_height - chart_padding }}"
+                      x2="{{ chart_width - chart_padding }}" y2="{{ chart_height - chart_padding }}" class="trend-axis" />
+                {% if chart_points|length > 1 %}
+                    <polyline points="{{ chart_polyline }}" fill="none" stroke="#2b6cb0" stroke-width="2" class="trend-line" />
+                {% endif %}
+                {% for point in chart_points %}
+                    <circle cx="{{ point.x }}" cy="{{ point.y }}" r="4" class="trend-point">
+                        <title>Run {{ point.run_id }} ({{ point.created_at }}): {{ "%.1f"|format(point.rate * 100) }}% row pass rate ({{ point.passing_rows }}/{{ point.evaluated_rows }} rows evaluated)</title>
+                    </circle>
+                {% endfor %}
+            </svg>
+            <ul class="trend-legend">
+                {% for point in chart_points %}
+                    <li>
+                        Run {{ point.run_id }} ({{ point.created_at }}):
+                        {{ "%.1f"|format(point.rate * 100) }}% row pass rate
+                        ({{ point.passing_rows }}/{{ point.evaluated_rows }} rows evaluated)
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No trend data yet.</p>
+        {% endif %}
+    </section>
+
     <section id="runs">
         <h3>Runs</h3>
 

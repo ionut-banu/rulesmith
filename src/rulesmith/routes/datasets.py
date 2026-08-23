@@ -7,10 +7,15 @@ from sqlalchemy.orm import Session
 from rulesmith.db import get_db
 from rulesmith.models import Dataset, Run
 from rulesmith.templates_engine import templates
+from rulesmith.trend import build_chart_points, build_trend_points, polyline_points
 
 router = APIRouter()
 
 MAX_RUNS_SHOWN = 50
+
+TREND_CHART_WIDTH = 600
+TREND_CHART_HEIGHT = 160
+TREND_CHART_PADDING = 30
 
 
 @router.get("/datasets")
@@ -82,6 +87,16 @@ def get_dataset(dataset_id: int, request: Request, db: Session = Depends(get_db)
             }
         )
 
+    # issue #13's run history is ordered newest-first; the trend needs the
+    # same run set ordered oldest-to-newest.
+    trend_points = build_trend_points(reversed(runs))
+    chart_points = build_chart_points(
+        trend_points,
+        width=TREND_CHART_WIDTH,
+        height=TREND_CHART_HEIGHT,
+        padding=TREND_CHART_PADDING,
+    )
+
     return templates.TemplateResponse(
         request,
         "datasets/detail.html",
@@ -89,5 +104,10 @@ def get_dataset(dataset_id: int, request: Request, db: Session = Depends(get_db)
             "dataset": dataset,
             "run_rows": run_rows,
             "more_runs_than_shown": total_runs > MAX_RUNS_SHOWN,
+            "chart_points": chart_points,
+            "chart_polyline": polyline_points(chart_points),
+            "chart_width": TREND_CHART_WIDTH,
+            "chart_height": TREND_CHART_HEIGHT,
+            "chart_padding": TREND_CHART_PADDING,
         },
     )

@@ -357,3 +357,184 @@ def test_very_long_dataset_name_is_accepted_and_rendered(client):
 
     assert detail_response.status_code == 200
     assert long_name in detail_response.text
+
+
+def test_trend_with_zero_runs_shows_empty_state(client):
+    dataset_id = _make_dataset(client.session_factory)
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "No trend data yet." in response.text
+    assert "trend-point" not in response.text
+
+
+def test_trend_is_labeled_as_row_level_not_rule_level(client):
+    dataset_id = _make_dataset(client.session_factory)
+    _make_run(
+        client.session_factory,
+        dataset_id,
+        results=[{"rule_id": None, "rule_name": "R1", "verdict": "pass", "pass_count": 10, "fail_count": 0}],
+    )
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "Row pass rate trend" in response.text
+    assert "row pass rate" in response.text.lower()
+    assert "share of rules passing" in response.text.lower() or "not a share of rules passing" in response.text.lower()
+
+
+def test_trend_single_eligible_run_renders_one_point(client):
+    dataset_id = _make_dataset(client.session_factory)
+    run_id = _make_run(
+        client.session_factory,
+        dataset_id,
+        results=[{"rule_id": None, "rule_name": "R1", "verdict": "pass", "pass_count": 8, "fail_count": 2}],
+    )
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert response.text.count("trend-point") == 1
+    assert f"Run {run_id}" in response.text
+    assert "80.0% row pass rate" in response.text
+    # A single point should not error and should not require a line.
+    assert "trend-line" not in response.text
+
+
+def test_trend_plots_row_level_rate_ordered_oldest_to_newest(client):
+    from datetime import datetime, timedelta, timezone
+
+    dataset_id = _make_dataset(client.session_factory)
+    base = datetime.now(timezone.utc)
+
+    older_run_id = _make_run(
+        client.session_factory,
+        dataset_id,
+        filename="older.csv",
+        results=[{"rule_id": None, "rule_name": "R1", "verdict": "pass", "pass_count": 5, "fail_count": 5}],
+        created_at=base - timedelta(hours=2),
+    )
+    newer_run_id = _make_run(
+        client.session_factory,
+        dataset_id,
+        filename="newer.csv",
+        results=[{"rule_id": None, "rule_name": "R1", "verdict": "pass", "pass_count": 9, "fail_count": 1}],
+        created_at=base,
+    )
+
+    response = client.get(f"/datasets/{dataset_id}")
+    text = response.text
+
+    assert response.status_code == 200
+    assert text.count("trend-point") == 2
+    older_pos = text.index(f"Run {older_run_id}")
+    newer_pos = text.index(f"Run {newer_run_id}")
+    assert older_pos < newer_pos
+    assert "50.0% row pass rate" in text
+    assert "90.0% row pass rate" in text
+
+
+def test_trend_excludes_broken_rule_rows_from_numerator_and_denominator(client):
+    dataset_id = _make_dataset(client.session_factory)
+    run_id = _make_run(
+        client.session_factory,
+        dataset_id,
+        results=[
+            {"rule_id": None, "rule_name": "good_rule", "verdict": "pass", "pass_count": 4, "fail_count": 1},
+            {
+                "rule_id": None,
+                "rule_name": "broken_rule",
+                "verdict": "broken",
+                "pass_count": None,
+                "fail_count": None,
+                "broken_reason": "unknown column(s): x",
+            },
+        ],
+    )
+
+    response = client.get(f"/datasets/{dataset_id}")
+    text = response.text
+
+    assert response.status_code == 200
+    assert f"Run {run_id}" in text
+    # 4/5 rows from the non-broken rule only, not diluted by the broken one.
+    assert "80.0% row pass rate" in text
+    assert "4/5 rows evaluated" in text
+
+
+def test_trend_excludes_run_with_zero_evaluated_rows_not_plotted_as_zero(client):
+    dataset_id = _make_dataset(client.session_factory)
+    eligible_run_id = _make_run(
+        client.session_factory,
+        dataset_id,
+        filename="eligible.csv",
+        results=[{"rule_id": None, "rule_name": "R1", "verdict": "pass", "pass_count": 3, "fail_count": 0}],
+    )
+    # Every rule broken -> zero evaluated rows -> must be excluded entirely.
+    _make_run(
+        client.session_factory,
+        dataset_id,
+        filename="all-broken.csv",
+        results=[
+            {
+                "rule_id": None,
+                "rule_name": "broken_rule",
+                "verdict": "broken",
+                "pass_count": None,
+                "fail_count": None,
+                "broken_reason": "boom",
+            }
+        ],
+    )
+
+    response = client.get(f"/datasets/{dataset_id}")
+    text = response.text
+    trend_section = text[text.index('<section id="trend">'):text.index('<section id="runs">')]
+
+    assert response.status_code == 200
+    assert trend_section.count("trend-point") == 1
+    assert f"Run {eligible_run_id}" in trend_section
+    assert "100.0% row pass rate" in trend_section
+
+
+def test_trend_run_with_no_rules_defined_has_zero_evaluated_rows_and_is_excluded(client):
+    dataset_id = _make_dataset(client.session_factory)
+    _make_run(client.session_factory, dataset_id, results=[])
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "No trend data yet." in response.text
+    assert "trend-point" not in response.text
+
+
+def test_trend_dataset_where_every_run_has_zero_evaluated_rows_shows_empty_state(client):
+    dataset_id = _make_dataset(client.session_factory)
+    _make_run(
+        client.session_factory,
+        dataset_id,
+        filename="a.csv",
+        results=[
+            {
+                "rule_id": None,
+                "rule_name": "broken_rule",
+                "verdict": "broken",
+                "pass_count": None,
+                "fail_count": None,
+                "broken_reason": "boom",
+            }
+        ],
+    )
+    _make_run(client.session_factory, dataset_id, filename="b.csv", results=[])
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "No trend data yet." in response.text
+    assert "trend-point" not in response.text
+    # Same empty-state markup as the zero-runs case.
+    zero_run_dataset_id = _make_dataset(client.session_factory, name="empty-dataset")
+    zero_runs_response = client.get(f"/datasets/{zero_run_dataset_id}")
+    assert "No trend data yet." in zero_runs_response.text
