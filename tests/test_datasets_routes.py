@@ -5,7 +5,7 @@ from sqlalchemy.pool import StaticPool
 
 from rulesmith.app import app
 from rulesmith.db import get_db
-from rulesmith.models import Dataset, get_session_factory, init_db
+from rulesmith.models import Dataset, Run, RuleResult, Upload, get_session_factory, init_db
 
 
 @pytest.fixture()
@@ -167,6 +167,180 @@ def test_dataset_name_with_script_tag_is_escaped_not_executed(client):
     list_response = client.get("/datasets")
     assert "<script>alert(1)</script>" not in list_response.text
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in list_response.text
+
+
+def _make_dataset(session_factory, name="orders"):
+    with session_factory() as session:
+        dataset = Dataset(name=name)
+        session.add(dataset)
+        session.commit()
+        return dataset.id
+
+
+def _make_run(session_factory, dataset_id, filename="upload.csv", results=None, created_at=None):
+    """Create an Upload/Run (and attached RuleResults) for an existing dataset.
+
+    `results` is a list of dicts with keys matching RuleResult fields.
+    Returns the run id.
+    """
+    with session_factory() as session:
+        upload = Upload(
+            dataset_id=dataset_id,
+            original_filename=filename,
+            stored_path="/tmp/whatever.csv",
+            format="csv",
+        )
+        session.add(upload)
+        session.commit()
+
+        run = Run(dataset_id=dataset_id, upload_id=upload.id)
+        if created_at is not None:
+            run.created_at = created_at
+        session.add(run)
+        session.commit()
+
+        for spec in results or []:
+            session.add(RuleResult(run_id=run.id, **spec))
+        session.commit()
+
+        return run.id
+
+
+def test_dataset_with_zero_runs_shows_empty_state(client):
+    dataset_id = _make_dataset(client.session_factory)
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "No runs yet." in response.text
+
+
+def test_dataset_runs_listed_newest_first_with_summaries_and_links(client):
+    from datetime import datetime, timedelta, timezone
+
+    dataset_id = _make_dataset(client.session_factory)
+    base = datetime.now(timezone.utc)
+
+    run1_id = _make_run(
+        client.session_factory,
+        dataset_id,
+        filename="first.csv",
+        results=[
+            {"rule_id": None, "rule_name": "R1", "verdict": "pass", "pass_count": 3, "fail_count": 0},
+        ],
+        created_at=base - timedelta(hours=2),
+    )
+    run2_id = _make_run(
+        client.session_factory,
+        dataset_id,
+        filename="second.csv",
+        results=[
+            {"rule_id": None, "rule_name": "R1", "verdict": "pass", "pass_count": 2, "fail_count": 0},
+            {"rule_id": None, "rule_name": "R2", "verdict": "fail", "pass_count": 1, "fail_count": 1},
+        ],
+        created_at=base,
+    )
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    text = response.text
+    assert "first.csv" in text
+    assert "second.csv" in text
+    assert f'href="/datasets/{dataset_id}/runs/{run1_id}"' in text
+    assert f'href="/datasets/{dataset_id}/runs/{run2_id}"' in text
+    # Newest first: run2 entry appears before run1 entry.
+    assert text.index(f"runs/{run2_id}") < text.index(f"runs/{run1_id}")
+    assert "1 passed, 0 failed, 0 broken" in text
+    assert "1 passed, 1 failed, 0 broken" in text
+
+
+def test_dataset_run_with_zero_rules_shows_no_rules_evaluated_headline(client):
+    dataset_id = _make_dataset(client.session_factory)
+    _make_run(client.session_factory, dataset_id, results=[])
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "no rules were evaluated" in response.text.lower()
+    assert "0 passed, 0 failed, 0 broken" not in response.text
+
+
+def test_dataset_with_51_runs_shows_only_50_and_more_runs_note(client):
+    from datetime import datetime, timedelta, timezone
+
+    dataset_id = _make_dataset(client.session_factory)
+    base = datetime.now(timezone.utc)
+
+    run_ids = []
+    for i in range(51):
+        run_ids.append(
+            _make_run(
+                client.session_factory,
+                dataset_id,
+                filename=f"file{i}.csv",
+                results=[],
+                created_at=base - timedelta(minutes=51 - i),
+            )
+        )
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    text = response.text
+    # The oldest run (run_ids[0]) should not be shown; the newest should be.
+    assert f"runs/{run_ids[0]}\"" not in text
+    assert f"runs/{run_ids[-1]}\"" in text
+    assert "more runs than shown" in text.lower()
+
+
+def test_dataset_with_exactly_50_runs_shows_all_and_no_more_runs_note(client):
+    from datetime import datetime, timedelta, timezone
+
+    dataset_id = _make_dataset(client.session_factory)
+    base = datetime.now(timezone.utc)
+
+    run_ids = []
+    for i in range(50):
+        run_ids.append(
+            _make_run(
+                client.session_factory,
+                dataset_id,
+                filename=f"file{i}.csv",
+                results=[],
+                created_at=base - timedelta(minutes=50 - i),
+            )
+        )
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    text = response.text
+    for run_id in run_ids:
+        assert f"runs/{run_id}\"" in text
+    assert "more runs than shown" not in text.lower()
+
+
+def test_dataset_run_list_upload_filename_with_script_tag_is_escaped(client):
+    dataset_id = _make_dataset(client.session_factory)
+    _make_run(client.session_factory, dataset_id, filename="<script>alert(1)</script>", results=[])
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "<script>alert(1)</script>" not in response.text
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in response.text
+
+
+def test_dataset_run_entry_links_to_run_detail_page(client):
+    dataset_id = _make_dataset(client.session_factory)
+    run_id = _make_run(client.session_factory, dataset_id, results=[])
+
+    response = client.get(f"/datasets/{dataset_id}")
+    assert f'href="/datasets/{dataset_id}/runs/{run_id}"' in response.text
+
+    detail_response = client.get(f"/datasets/{dataset_id}/runs/{run_id}")
+    assert detail_response.status_code == 200
 
 
 def test_very_long_dataset_name_is_accepted_and_rendered(client):

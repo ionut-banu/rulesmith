@@ -31,6 +31,30 @@
 
     <section id="runs">
         <h3>Runs</h3>
-        <p>No runs yet.</p>
+
+        {% if run_rows %}
+            <ul class="run-list">
+                {% for row in run_rows %}
+                    {% set run = row.run %}
+                    <li>
+                        <a href="/datasets/{{ dataset.id }}/runs/{{ run.id }}">
+                            Run {{ run.id }} &mdash; {{ run.created_at }} &mdash; {{ run.upload.original_filename }}
+                        </a>
+                        {% if not row.has_results %}
+                            <span class="run-summary run-summary--no-rules">No rules were evaluated (this dataset has no rules).</span>
+                        {% elif row.failed == 0 and row.broken == 0 %}
+                            <span class="run-summary run-summary--clean">Clean pass: {{ row.passed }} passed, {{ row.failed }} failed, {{ row.broken }} broken.</span>
+                        {% else %}
+                            <span class="run-summary run-summary--not-clean">{{ row.passed }} passed, {{ row.failed }} failed, {{ row.broken }} broken.</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+            {% if more_runs_than_shown %}
+                <p class="more-runs-note">Showing the most recent {{ run_rows|length }} runs. There are more runs than shown.</p>
+            {% endif %}
+        {% else %}
+            <p>No runs yet.</p>
+        {% endif %}
     </section>
 {% endblock %}
