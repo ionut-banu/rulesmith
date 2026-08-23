@@ -9,6 +9,9 @@
     <p class="run-meta">
         Ran at: {{ run.created_at }} &mdash; File: {{ upload.original_filename }}
     </p>
+    <p class="run-report-download">
+        <a href="/datasets/{{ dataset.id }}/runs/{{ run.id }}/report.csv" download>Download report (CSV)</a>
+    </p>
 
     {% if rule_results|length == 0 %}
         <p class="run-summary run-summary--no-rules">No rules were evaluated (this dataset has no rules).</p>
