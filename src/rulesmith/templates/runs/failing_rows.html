@@ -1,0 +1,35 @@
+{% if not_applicable %}
+    <p class="failing-rows failing-rows--not-applicable">
+        Not applicable: failing rows are only available for rules with a "fail" verdict.
+    </p>
+{% elif error %}
+    <p class="failing-rows failing-rows--error">{{ error }}</p>
+{% else %}
+    <div class="failing-rows">
+        {% if truncated %}
+            <p class="failing-rows-note">showing {{ shown }} of {{ fail_count }} failing rows</p>
+        {% endif %}
+        {% if columns %}
+            <table class="failing-rows-table">
+                <thead>
+                    <tr>
+                        {% for column in columns %}
+                            <th>{{ column }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            {% for column in columns %}
+                                <td>{{ row[column] }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="failing-rows-empty">No failing rows to show.</p>
+        {% endif %}
+    </div>
+{% endif %}

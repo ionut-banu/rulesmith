@@ -28,6 +28,14 @@
                 {% elif result.verdict == "fail" %}
                     <span class="verdict verdict-fail">&#10007; FAIL</span>
                     <span class="counts">{{ result.pass_count }} passed, {{ result.fail_count }} failed</span>
+                    <button
+                        type="button"
+                        class="expand-failing-rows"
+                        hx-get="/datasets/{{ dataset.id }}/runs/{{ run.id }}/rule-results/{{ result.id }}/failing-rows"
+                        hx-target="#failing-rows-{{ result.id }}"
+                        hx-swap="innerHTML"
+                    >Expand failing rows</button>
+                    <div id="failing-rows-{{ result.id }}" class="failing-rows-container"></div>
                 {% else %}
                     <span class="verdict verdict-broken">&#9888; BROKEN</span>
                     <span class="broken-reason">{{ result.broken_reason }}</span>
