@@ -255,6 +255,90 @@ def test_parquet_upload_is_parsed_and_stored(client):
         assert upload.format == "parquet"
 
 
+def test_unrecognized_extension_renders_dataset_detail_html(client):
+    dataset_id = _make_dataset(client)
+    _add_rule(client, dataset_id, "AgeCheck", "age > 18")
+    run_id = _upload(client, dataset_id, "valid.csv").headers["location"].rsplit("/", 1)[-1]
+
+    response = client.post(
+        f"/datasets/{dataset_id}/uploads",
+        files={"file": ("data.txt", b"hello", "text/plain")},
+    )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("text/html")
+    body = response.text
+    assert "Unrecognized file extension" in body
+    assert "AgeCheck" in body
+    assert f"Run {run_id}" in body
+
+
+def test_oversized_file_renders_dataset_detail_html(client):
+    dataset_id = _make_dataset(client)
+    _add_rule(client, dataset_id, "AgeCheck", "age > 18")
+    run_id = _upload(client, dataset_id, "valid.csv").headers["location"].rsplit("/", 1)[-1]
+    big_content = b"a" * (20 * 1024 * 1024 + 1)
+
+    response = client.post(
+        f"/datasets/{dataset_id}/uploads",
+        files={"file": ("big.csv", big_content, "text/csv")},
+    )
+
+    assert response.status_code == 413
+    assert response.headers["content-type"].startswith("text/html")
+    body = response.text
+    assert "20 MB upload limit" in body
+    assert "AgeCheck" in body
+    assert f"Run {run_id}" in body
+
+
+def test_malformed_file_renders_dataset_detail_html(client):
+    dataset_id = _make_dataset(client)
+    _add_rule(client, dataset_id, "AgeCheck", "age > 18")
+    run_id = _upload(client, dataset_id, "valid.csv").headers["location"].rsplit("/", 1)[-1]
+
+    response = _upload(client, dataset_id, "malformed.csv")
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("text/html")
+    body = response.text
+    assert "Could not parse uploaded file" in body
+    assert "AgeCheck" in body
+    assert f"Run {run_id}" in body
+
+
+def test_successful_upload_still_redirects(client):
+    dataset_id = _make_dataset(client)
+
+    response = _upload(client, dataset_id, "valid.csv")
+
+    assert response.status_code == 303
+    with client.session_factory() as session:
+        run = session.query(Run).one()
+    assert response.headers["location"] == f"/datasets/{dataset_id}/runs/{run.id}"
+
+
+def test_nonexistent_dataset_upload_returns_404_unchanged(client):
+    response = _upload(client, 999999, "valid.csv")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Dataset not found"}
+
+
+def test_upload_error_html_escapes_crafted_filename(client):
+    dataset_id = _make_dataset(client)
+
+    response = client.post(
+        f"/datasets/{dataset_id}/uploads",
+        files={"file": ("data.<script>", b"hello", "text/plain")},
+    )
+
+    assert response.status_code == 422
+    body = response.text
+    assert "<script>" not in body
+    assert "&lt;script&gt;" in body
+
+
 def test_failing_row_ref_is_json_encoded_list_of_indices(client):
     dataset_id = _make_dataset(client)
     _add_rule(client, dataset_id, "OldEnough", "age >= 30")

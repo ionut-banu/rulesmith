@@ -54,12 +54,13 @@ def create_dataset(
     return RedirectResponse(url=f"/datasets/{dataset.id}", status_code=303)
 
 
-@router.get("/datasets/{dataset_id}")
-def get_dataset(dataset_id: int, request: Request, db: Session = Depends(get_db)):
-    dataset = db.get(Dataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+def build_dataset_detail_context(dataset_id: int, db: Session) -> dict:
+    """Build the template context for the dataset detail page.
 
+    Shared by `get_dataset()` and the upload error paths in
+    `routes/uploads.py`, which need to re-render the same page (rules,
+    run history, trend chart) alongside an upload error message.
+    """
     total_runs = (
         db.query(Run).filter(Run.dataset_id == dataset_id).count()
     )
@@ -97,17 +98,28 @@ def get_dataset(dataset_id: int, request: Request, db: Session = Depends(get_db)
         padding=TREND_CHART_PADDING,
     )
 
+    return {
+        "run_rows": run_rows,
+        "more_runs_than_shown": total_runs > MAX_RUNS_SHOWN,
+        "chart_points": chart_points,
+        "chart_polyline": polyline_points(chart_points),
+        "chart_width": TREND_CHART_WIDTH,
+        "chart_height": TREND_CHART_HEIGHT,
+        "chart_padding": TREND_CHART_PADDING,
+    }
+
+
+@router.get("/datasets/{dataset_id}")
+def get_dataset(dataset_id: int, request: Request, db: Session = Depends(get_db)):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    context = build_dataset_detail_context(dataset_id, db)
+    context["dataset"] = dataset
+
     return templates.TemplateResponse(
         request,
         "datasets/detail.html",
-        {
-            "dataset": dataset,
-            "run_rows": run_rows,
-            "more_runs_than_shown": total_runs > MAX_RUNS_SHOWN,
-            "chart_points": chart_points,
-            "chart_polyline": polyline_points(chart_points),
-            "chart_width": TREND_CHART_WIDTH,
-            "chart_height": TREND_CHART_HEIGHT,
-            "chart_padding": TREND_CHART_PADDING,
-        },
+        context,
     )

@@ -6,6 +6,10 @@
     <h2>{{ dataset.name }}</h2>
     <p class="created-at">Created at: {{ dataset.created_at }}</p>
 
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
     <section id="rules">
         <h3>Rules</h3>
 

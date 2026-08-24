@@ -5,15 +5,17 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from rulesmith.db import get_db
 from rulesmith.loader import TableLoadError, load_table
 from rulesmith.models import Dataset, Run, RuleResult, Upload
+from rulesmith.routes.datasets import build_dataset_detail_context
 from rulesmith.rules import RuleInput
 from rulesmith.rules import run as run_rules
+from rulesmith.templates_engine import templates
 
 router = APIRouter()
 
@@ -26,9 +28,27 @@ MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
 _EXTENSION_TO_FORMAT = {".csv": "csv", ".json": "json", ".parquet": "parquet"}
 
 
+def _render_upload_error(request: Request, dataset: Dataset, db: Session, error: str, status_code: int):
+    """Re-render the dataset detail page with an upload error message.
+
+    Uses the same rules/runs/trend context as `GET /datasets/{id}` so an
+    upload failure lands on a normal page rather than a raw JSON error.
+    """
+    context = build_dataset_detail_context(dataset.id, db)
+    context["dataset"] = dataset
+    context["error"] = error
+    return templates.TemplateResponse(
+        request,
+        "datasets/detail.html",
+        context,
+        status_code=status_code,
+    )
+
+
 @router.post("/datasets/{dataset_id}/uploads")
 async def upload_file(
     dataset_id: int,
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -40,9 +60,12 @@ async def upload_file(
     ext = Path(original_filename).suffix.lower()
     file_format = _EXTENSION_TO_FORMAT.get(ext)
     if file_format is None:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Unrecognized file extension: {ext!r}. Expected .csv, .json, or .parquet.",
+        return _render_upload_error(
+            request,
+            dataset,
+            db,
+            f"Unrecognized file extension: {ext!r}. Expected .csv, .json, or .parquet.",
+            422,
         )
 
     # Read with a cap so an oversized file is never fully buffered, let
@@ -53,7 +76,9 @@ async def upload_file(
     # limit would reject a file of exactly the allowed size.
     contents = await file.read(MAX_UPLOAD_SIZE + 1)
     if len(contents) > MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="File exceeds the 20 MB upload limit.")
+        return _render_upload_error(
+            request, dataset, db, "File exceeds the 20 MB upload limit.", 413
+        )
 
     # Validate the file parses before anything is persisted. The temp file
     # lives outside UPLOAD_DIR, so a failed upload never leaves a trace in
@@ -66,7 +91,9 @@ async def upload_file(
         load_table(tmp_path, file_format)
     except TableLoadError as exc:
         tmp_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=422, detail=f"Could not parse uploaded file: {exc}") from exc
+        return _render_upload_error(
+            request, dataset, db, f"Could not parse uploaded file: {exc}", 422
+        )
 
     dataset_dir = UPLOAD_DIR / str(dataset_id)
     upload_uuid = uuid.uuid4().hex
