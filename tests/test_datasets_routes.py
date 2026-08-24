@@ -6,10 +6,11 @@ from sqlalchemy.pool import StaticPool
 from rulesmith.app import app
 from rulesmith.db import get_db
 from rulesmith.models import Dataset, Run, RuleResult, Upload, get_session_factory, init_db
+from rulesmith.routes import uploads as uploads_module
 
 
 @pytest.fixture()
-def client():
+def client(tmp_path, monkeypatch):
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -23,8 +24,10 @@ def client():
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(uploads_module, "UPLOAD_DIR", tmp_path / "uploads")
     with TestClient(app) as test_client:
         test_client.session_factory = session_factory
+        test_client.upload_dir = tmp_path / "uploads"
         yield test_client
     app.dependency_overrides.clear()
 
