@@ -169,6 +169,70 @@ def test_dataset_name_with_script_tag_is_escaped_not_executed(client):
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in list_response.text
 
 
+def test_dataset_detail_shows_upload_form(client):
+    with client.session_factory() as session:
+        dataset = Dataset(name="orders")
+        session.add(dataset)
+        session.commit()
+        dataset_id = dataset.id
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert (
+        f'<form method="post" action="/datasets/{dataset_id}/uploads" '
+        'enctype="multipart/form-data">' in response.text
+    )
+    assert '<input type="file" id="file" name="file">' in response.text
+
+
+def test_dataset_detail_upload_form_present_with_no_rules_or_runs(client):
+    with client.session_factory() as session:
+        dataset = Dataset(name="orders")
+        session.add(dataset)
+        session.commit()
+        dataset_id = dataset.id
+
+    response = client.get(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 200
+    assert "No rules yet." in response.text
+    assert "No runs yet." in response.text
+    assert 'id="upload"' in response.text
+    assert '<input type="file" id="file" name="file">' in response.text
+
+
+def test_dataset_detail_upload_form_submits_valid_file_and_redirects_to_run(client):
+    dataset_id = _make_dataset(client.session_factory)
+
+    response = client.post(
+        f"/datasets/{dataset_id}/uploads",
+        files={"file": ("data.csv", b"a,b\n1,2\n", "text/csv")},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith(
+        f"/datasets/{dataset_id}/runs/"
+    )
+
+
+def test_dataset_detail_upload_form_submits_invalid_file_shows_error_on_same_page(
+    client,
+):
+    dataset_id = _make_dataset(client.session_factory)
+
+    response = client.post(
+        f"/datasets/{dataset_id}/uploads",
+        files={"file": ("data.txt", b"hello", "text/plain")},
+    )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("text/html")
+    assert '<p class="error">' in response.text
+    assert 'id="upload"' in response.text
+
+
 def _make_dataset(session_factory, name="orders"):
     with session_factory() as session:
         dataset = Dataset(name=name)

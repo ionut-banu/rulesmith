@@ -10,6 +10,16 @@
         <p class="error">{{ error }}</p>
     {% endif %}
 
+    <section id="upload">
+        <h3>Upload data file</h3>
+        <form method="post" action="/datasets/{{ dataset.id }}/uploads" enctype="multipart/form-data">
+            <label for="file">File</label>
+            <input type="file" id="file" name="file">
+
+            <button type="submit">Upload</button>
+        </form>
+    </section>
+
     <section id="rules">
         <h3>Rules</h3>
 
