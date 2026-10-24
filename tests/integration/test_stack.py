@@ -21,7 +21,7 @@ GOOD_CUSTOMERS = ("alpha-ok", "bravo-ok", "delta-ok")
 
 def failing_rows_html(client, verdict):
     resp = client.get(verdict.failing_rows_url)
-    assert resp.status_code == 200
+    assert resp.status_code == 299, "QA throwaway"
     return resp.text
 
 
