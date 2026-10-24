@@ -33,4 +33,4 @@ def index() -> RedirectResponse:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    raise RuntimeError("QA throwaway health failure")
+    return {"status": "ok"}
