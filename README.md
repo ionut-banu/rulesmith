@@ -1,5 +1,7 @@
 # Rulesmith
 
+[![CI](https://github.com/ionut-banu/rulesmith/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ionut-banu/rulesmith/actions/workflows/ci.yml?query=branch%3Amain)
+
 A web app for checking whether a data file is fit to use, without writing a
 throwaway script every time a new export lands.
 
@@ -137,6 +139,23 @@ message naming the URL. Every dataset they create has a random name, so they
 can be re-run against a non-empty database. The restart scenario runs
 `docker compose restart app` in the repo root.
 
+### CI
+
+GitHub Actions (`.github/workflows/ci.yml`, workflow `CI`) runs on every pull
+request and on every push to `main`, with no secrets. It has two independent
+jobs that run in parallel:
+
+| Job (check name) | Command |
+|---|---|
+| `unit` | `uv sync`, then `uv run pytest` (same as `make test`) |
+| `integration` | `uv sync`, then `make test-integration` |
+
+The same commands run locally: `make test` and `make test-integration`. The
+check names `unit` and `integration` are stable so a repo admin can register
+them as required checks (branch protection on `main`; not set up yet, so CI
+reports failures but does not block merging). New pushes to a PR cancel its
+stale run; runs on `main` are never cancelled.
+
 ## How this was built
 
 Rulesmith was built spec-first with a team of coding agents.
@@ -166,7 +185,7 @@ Rulesmith was built spec-first with a team of coding agents.
 | Testing | `tests/` (unit), `tests/integration/` (integration against Docker Compose); `make test`, `make test-integration`, `make test-all` |
 | Containerization | `Dockerfile`, `docker-compose.yaml`, `Makefile`; see *Running with Docker* |
 | Deployment | _TBD_ |
-| CI/CD | _TBD_ |
+| CI/CD | CI: `.github/workflows/ci.yml` (unit + integration on PR and push to `main`); CD still pending (#22) |
 | Observability | _TBD_ |
 | Alerting | _TBD_ |
 | On-call agent | _TBD_ |
