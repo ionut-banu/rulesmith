@@ -79,6 +79,39 @@ Configuration (environment variables; unset or empty uses the default):
 Tables are created on start. Paths are relative to the working directory, and
 `./data` is created if missing and git-ignored.
 
+## Running with Docker
+
+Requires Docker with Compose v2. `make up` starts the app and Postgres 16.
+
+```bash
+make up     # build and start in the background (safe to run twice)
+make logs   # tail the app logs
+make down   # stop and remove containers, keep data
+```
+
+Open http://localhost:8000/datasets. Postgres is not published on a host port.
+
+Data lives in two named volumes, `rulesmith_pgdata` (Postgres) and
+`rulesmith_uploads` (uploaded files). They survive `make down`. To reset
+all data, run `docker compose down -v`.
+
+The compose file sets `RULESMITH_DATABASE_URL` and `RULESMITH_UPLOAD_DIR`
+(see *Running locally*). The Postgres credentials are local-only,
+dev-only placeholders defined in `docker-compose.yaml`; they are not used
+in deployed environments.
+
+Manual check that data survives a restart:
+
+1. `make up`
+2. Open http://localhost:8000/datasets and create a dataset.
+3. Add a rule `age >= 30` to it.
+4. Upload `tests/fixtures/loader/valid.csv` (3 rows). The run shows the rule
+   failing for Bob's row.
+5. `make down && make up`
+6. `/datasets` still lists the dataset, the rule is still on its page, the run
+   is still in its history, and the run's failing-rows view still shows Bob's
+   row (the uploaded file survived, not only the database).
+
 ## Tests
 
 ```bash
@@ -112,7 +145,7 @@ Rulesmith was built spec-first with a team of coding agents.
 | Context management | `AGENTS.md` → `_docs/` |
 | Application | FastAPI + Jinja2/HTMX + SQLite (dev/tests) or Postgres (`RULESMITH_DATABASE_URL`); see *Running locally* |
 | Testing | `tests/` (unit), `tests/integration/` (integration) |
-| Containerization | _TBD_ |
+| Containerization | `Dockerfile`, `docker-compose.yaml`, `Makefile`; see *Running with Docker* |
 | Deployment | _TBD_ |
 | CI/CD | _TBD_ |
 | Observability | _TBD_ |

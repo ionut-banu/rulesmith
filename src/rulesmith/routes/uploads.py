@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import tempfile
 import uuid
 from pathlib import Path
@@ -102,7 +103,9 @@ async def upload_file(
 
     try:
         dataset_dir.mkdir(parents=True, exist_ok=True)
-        tmp_path.replace(final_path)
+        # shutil.move, not Path.replace: the temp dir and the upload dir can be
+        # different filesystems (e.g. a Docker volume), where rename fails.
+        shutil.move(tmp_path, final_path)
     except OSError as exc:
         tmp_path.unlink(missing_ok=True)
         final_path.unlink(missing_ok=True)

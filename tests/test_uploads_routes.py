@@ -352,3 +352,17 @@ def test_failing_row_ref_is_json_encoded_list_of_indices(client):
     indices = json.loads(result.failing_row_ref)
     assert isinstance(indices, list)
     assert all(isinstance(i, int) for i in indices)
+
+
+def test_upload_is_stored_when_rename_crosses_filesystems(client, monkeypatch):
+    """In Docker the temp dir and the upload volume are different filesystems,
+    where Path.replace fails with EXDEV; the upload must still succeed."""
+
+    def cross_device_replace(self, target):
+        raise OSError(18, "Invalid cross-device link")
+
+    monkeypatch.setattr(Path, "replace", cross_device_replace)
+    dataset_id = _make_dataset(client)
+    response = _upload(client, dataset_id, "valid.csv")
+    assert response.status_code == 303
+    assert len(list((client.upload_dir / str(dataset_id)).iterdir())) == 1
