@@ -5,7 +5,8 @@ Implements the product described in `plan.md`.
 ## Tech stack
 
 - **Backend**: Python, FastAPI
-- **Database**: SQLite via SQLAlchemy
+- **Database**: SQLAlchemy; SQLite for dev and tests, Postgres (psycopg) for
+  containers and deployed environments, chosen by `RULESMITH_DATABASE_URL`
 - **Tabular processing**: Pandas (CSV, JSON, Parquet)
 - **Expression evaluation**: simpleeval (safe evaluation, no `eval`/`exec`)
 - **Frontend**: Server-rendered Jinja2 templates + HTMX for partial updates
@@ -36,7 +37,8 @@ Single FastAPI app in three layers:
     they satisfy the plan's requirement that expression evaluation be
     testable as a plain function over a table and an expression string.
 - **Persistence layer**: SQLAlchemy models (`Dataset`, `Rule`, `Upload`,
-  `Run`, `RuleResult`) over SQLite. Uploaded files are stored on local disk,
+  `Run`, `RuleResult`) over SQLite or Postgres. Uploaded files are stored on local disk
+  (`RULESMITH_UPLOAD_DIR`),
   referenced by path from the `Upload` row; they are retained, never
   mutated in place.
 

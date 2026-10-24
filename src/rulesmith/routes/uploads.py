@@ -1,6 +1,7 @@
 """Route for uploading a file to a dataset, running its rules, and storing the result."""
 
 import json
+import os
 import tempfile
 import uuid
 from pathlib import Path
@@ -21,7 +22,7 @@ router = APIRouter()
 
 # Module-level so tests can point it at a temp directory via monkeypatch,
 # the same way `get_db` is overridden for a temp database.
-UPLOAD_DIR = Path("./data/uploads")
+UPLOAD_DIR = Path(os.environ.get("RULESMITH_UPLOAD_DIR") or "./data/uploads")
 
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
 

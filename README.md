@@ -52,7 +52,8 @@ are kept as a history.
 - **Backend:** Python, FastAPI, SQLAlchemy
 - **Frontend:** server-rendered Jinja2 templates with HTMX for partial updates
   (for example, expanding failing rows in place)
-- **Database:** SQLite for local development and tests
+- **Database:** SQLite for local development and tests, Postgres for
+  containers and deployed environments
 - **Data processing:** pandas and pyarrow (CSV, JSON, Parquet)
 
 Details: [`_docs/architecture.md`](_docs/architecture.md).
@@ -67,6 +68,16 @@ uv run uvicorn rulesmith.app:app --reload
 ```
 
 Open http://localhost:8000/datasets.
+
+Configuration (environment variables; unset or empty uses the default):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `RULESMITH_DATABASE_URL` | `sqlite:///./data/rulesmith.db` | SQLAlchemy URL, e.g. `postgresql+psycopg://user:pass@host:5432/rulesmith` |
+| `RULESMITH_UPLOAD_DIR` | `./data/uploads` | Where uploads are stored, as `<dir>/<dataset id>/` |
+
+Tables are created on start. Paths are relative to the working directory, and
+`./data` is created if missing and git-ignored.
 
 ## Tests
 
@@ -99,7 +110,7 @@ Rulesmith was built spec-first with a team of coding agents.
 | Product specification | `_docs/plan.md` + GitHub issues with acceptance criteria and agent comments |
 | Agent team | `_docs/team/`, `_docs/process.md`, `.claude/agents/` |
 | Context management | `AGENTS.md` → `_docs/` |
-| Application | FastAPI + Jinja2/HTMX + database; see *Running locally* |
+| Application | FastAPI + Jinja2/HTMX + SQLite (dev/tests) or Postgres (`RULESMITH_DATABASE_URL`); see *Running locally* |
 | Testing | `tests/` (unit), `tests/integration/` (integration) |
 | Containerization | _TBD_ |
 | Deployment | _TBD_ |

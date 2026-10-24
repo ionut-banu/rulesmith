@@ -6,6 +6,7 @@ tested without a running app.
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import datetime, timezone
 
 from sqlalchemy import (
@@ -146,6 +147,9 @@ class RuleResult(Base):
 
 @event.listens_for(Engine, "connect")
 def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+    # Only SQLite needs this; other drivers (e.g. psycopg) enforce FKs natively.
+    if not isinstance(dbapi_connection, sqlite3.Connection):
+        return
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
