@@ -1,0 +1,6 @@
+order_id,customer,amount
+1,alpha-ok,10
+2,bravo-ok,20
+3,charlie-bad,-5
+4,delta-ok,30
+5,echo-bad,-7

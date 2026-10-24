@@ -114,9 +114,28 @@ Manual check that data survives a restart:
 
 ## Tests
 
-```bash
-uv run pytest
-```
+| Command | What it does | Needs |
+|---|---|---|
+| `make test` | Unit tests only (`uv run pytest`) | Nothing else; no Docker |
+| `make test-integration` | Builds and starts the Docker stack, waits for `/health`, runs `tests/integration` over HTTP, then tears the stack down (also on failure; prints the app logs if it never turns healthy) | Docker with Compose v2, port 8000 free |
+| `make test-all` | `make test`, then `make test-integration`; fails if either fails | Same as the two above |
+
+Plain `uv run pytest` collects only the unit tests. The integration tests run
+only when named: `uv run pytest tests/integration` (stack must already be
+up).
+
+`make test-integration` uses its own Compose project, `rulesmith-it`, so its
+containers and volumes (`rulesmith-it_pgdata`, `rulesmith-it_uploads`) are
+separate from your dev stack's `rulesmith_pgdata` / `rulesmith_uploads`,
+which it never touches. Its volumes are deleted at teardown. If port 8000 is
+already in use the target fails immediately instead of testing the wrong
+server.
+
+The integration tests talk to `RULESMITH_BASE_URL` (default
+`http://localhost:8000`). If nothing answers there, the suite stops with one
+message naming the URL. Every dataset they create has a random name, so they
+can be re-run against a non-empty database. The restart scenario runs
+`docker compose restart app` in the repo root.
 
 ## How this was built
 
@@ -144,7 +163,7 @@ Rulesmith was built spec-first with a team of coding agents.
 | Agent team | `_docs/team/`, `_docs/process.md`, `.claude/agents/` |
 | Context management | `AGENTS.md` → `_docs/` |
 | Application | FastAPI + Jinja2/HTMX + SQLite (dev/tests) or Postgres (`RULESMITH_DATABASE_URL`); see *Running locally* |
-| Testing | `tests/` (unit), `tests/integration/` (integration) |
+| Testing | `tests/` (unit), `tests/integration/` (integration against Docker Compose); `make test`, `make test-integration`, `make test-all` |
 | Containerization | `Dockerfile`, `docker-compose.yaml`, `Makefile`; see *Running with Docker* |
 | Deployment | _TBD_ |
 | CI/CD | _TBD_ |
