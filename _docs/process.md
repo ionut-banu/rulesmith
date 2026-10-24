@@ -19,3 +19,13 @@ Rules
 - The engineer does not close the issue
 - QA does not fix the code, only outputs PASS or FAIL
 - The orchestrator closes the issue only after QA outputs PASS
+
+Roles
+
+- PM - grooms a task before anyone implements it, follows `_docs/team/pm.md`
+- Engineer - implements one groomed task, follows `_docs/team/software-engineer.md`
+- QA - checks the result against the acceptance criteria, follows `_docs/team/qa-engineer.md`
+- On-call - woken by an alert, not by an issue; finds the root cause and ships
+  the smallest tested fix, follows `_docs/team/on-call-engineer.md`
+
+Each role is also available as a subagent in `.claude/agents/`.
