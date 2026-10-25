@@ -13,6 +13,11 @@ dependencies = [
     "simpleeval>=1.0.7",
     "sqlalchemy>=2.0.52",
     "uvicorn>=0.52.4",
+    "opentelemetry-sdk>=1.45.1",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
+    "opentelemetry-instrumentation-logging>=0.66b1",
 ]
 
 [build-system]

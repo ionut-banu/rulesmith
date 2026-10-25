@@ -1,4 +1,4 @@
-.PHONY: up down logs test test-integration test-all
+.PHONY: up down logs test test-integration test-all obs-up obs-down
 
 # Integration tests run in their own compose project so they never touch the
 # volumes (rulesmith_pgdata, rulesmith_uploads) of a developer's dev stack.
@@ -45,3 +45,11 @@ test-integration:
 	exit $$rc
 
 test-all: test test-integration
+
+# Local Grafana/Tempo/Loki/Prometheus stack in its own Compose project
+# (rulesmith-obs); see _docs/observability.md.
+obs-up:
+	docker compose -f observability/docker-compose.yaml up -d
+
+obs-down:
+	docker compose -f observability/docker-compose.yaml down

@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: Rulesmith
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /otel-lgtm/rulesmith-dashboards
+      foldersFromFilesStructure: false

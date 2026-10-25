@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
+from rulesmith import telemetry
 from rulesmith.db import get_db, get_engine
 from rulesmith.routes.datasets import router as datasets_router
 from rulesmith.routes.rules import router as rules_router
@@ -34,3 +35,6 @@ def index() -> RedirectResponse:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+telemetry.setup(app)

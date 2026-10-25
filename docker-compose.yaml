@@ -23,6 +23,13 @@ services:
     environment:
       RULESMITH_DATABASE_URL: postgresql+psycopg://rulesmith:rulesmith-dev-only@db:5432/rulesmith
       RULESMITH_UPLOAD_DIR: /var/lib/rulesmith/uploads
+      # Telemetry is off unless the endpoint is set in your shell, e.g.
+      # OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318 make up
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      RULESMITH_ENV: ${RULESMITH_ENV:-}
+      RULESMITH_VERSION: ${RULESMITH_VERSION:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     volumes:

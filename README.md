@@ -114,6 +114,23 @@ Manual check that data survives a restart:
    is still in its history, and the run's failing-rows view still shows Bob's
    row (the uploaded file survived, not only the database).
 
+## Observability
+
+Telemetry (traces, metrics, JSON logs over OTLP) is off unless
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. Logs are always JSON on stdout.
+
+```bash
+make obs-up   # Grafana + Tempo + Loki + Prometheus at http://localhost:3000 (admin / admin)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 uv run uvicorn rulesmith.app:app
+# or, for the Docker stack:
+OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318 make up
+make obs-down
+```
+
+`RULESMITH_ENV` (default `local`) and `RULESMITH_VERSION` (default `dev`) label
+the telemetry. The "Rulesmith — checks" dashboard is provisioned
+automatically. Details and the manual check: [`_docs/observability.md`](_docs/observability.md).
+
 ## Tests
 
 | Command | What it does | Needs |
@@ -186,6 +203,6 @@ Rulesmith was built spec-first with a team of coding agents.
 | Containerization | `Dockerfile`, `docker-compose.yaml`, `Makefile`; see *Running with Docker* |
 | Deployment | _TBD_ |
 | CI/CD | CI: `.github/workflows/ci.yml` (unit + integration on PR and push to `main`); CD still pending (#22) |
-| Observability | _TBD_ |
+| Observability | `src/rulesmith/telemetry.py`, `observability/`, `_docs/observability.md`; see *Observability* |
 | Alerting | _TBD_ |
 | On-call agent | _TBD_ |

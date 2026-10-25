@@ -1,0 +1,19 @@
+# Local observability stack (dev only: default Grafana credentials, no auth
+# hardening, no retention policy). Its own Compose project, so `make down` and
+# `make test-integration` never touch it and its volume never mixes with the
+# app stack's. Start it with `make obs-up`.
+name: rulesmith-obs
+
+services:
+  lgtm:
+    image: grafana/otel-lgtm:0.37.0
+    ports:
+      - "3000:3000"   # Grafana
+      - "4318:4318"   # OTLP over HTTP (http/protobuf)
+    volumes:
+      - lgtm-data:/data
+      - ./grafana/rulesmith-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/rulesmith.yaml:ro
+      - ./grafana/dashboards:/otel-lgtm/rulesmith-dashboards:ro
+
+volumes:
+  lgtm-data:
