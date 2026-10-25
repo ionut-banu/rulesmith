@@ -26,8 +26,7 @@ def test_rule_file_parses_with_expected_shape():
     assert rule["noDataState"] == "OK"
     assert rule["execErrState"] == "Error"
     assert rule["labels"]["owner"] == "on-call-agent"
-    for label in ("service", "environment", "severity"):
-        assert rule["labels"][label]
+    assert rule["labels"]["severity"]
     for annotation in ("summary", "version", "dashboard_url"):
         assert rule["annotations"][annotation]
     assert "rulesmith-checks" in rule["annotations"]["dashboard_url"]
@@ -42,6 +41,7 @@ def test_rule_uses_metric_contract_and_thresholds():
     assert "rejected" not in expr.replace('outcome=~"completed|error"', "")
     assert "[5m]" in expr and ">= 3" in expr
     assert "deployment_environment" in expr
+    assert '"environment"' in expr and '"service"' in expr
     assert queries["C"]["expression"] == "$B >= 0.2"
     assert rule["condition"] == "C"
 

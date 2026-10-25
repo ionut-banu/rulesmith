@@ -24,16 +24,17 @@
               # two unlucky requests never fire). "rejected" is excluded from
               # numerator and denominator: user mistakes (bad extension,
               # malformed file, ...) can neither trigger nor dilute the alert.
-              # The ratio carries the service_version of the series with the
-              # most errors, for the `version` annotation. No traffic or no
-              # errors give an empty result, which is "no data" (see below).
+              # The result also carries `service` and `environment` labels and
+              # the service_version of the series with the most errors (for
+              # the `version` annotation). No traffic or fewer than 3 errors
+              # give an empty result, which is "no data" (see below).
               "refId": "A",
               "relativeTimeRange": { "from": 600, "to": 0 },
               "datasourceUid": "prometheus",
               "model": {
                 "refId": "A",
                 "instant": true,
-                "expr": "((sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=\"error\"}[5m])) / sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=~\"completed|error\"}[5m]))) and on (deployment_environment, service_name) (sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=\"error\"}[5m])) >= 3)) * on (deployment_environment, service_name) group_left (service_version) (topk by (deployment_environment, service_name) (1, sum by (deployment_environment, service_name, service_version) (increase(rulesmith_checks_total{outcome=\"error\"}[5m]))) ^ 0)"
+                "expr": "label_replace(label_replace(((sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=\"error\"}[5m])) / sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=~\"completed|error\"}[5m]))) and on (deployment_environment, service_name) (sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=\"error\"}[5m])) >= 3)) * on (deployment_environment, service_name) group_left (service_version) (topk by (deployment_environment, service_name) (1, sum by (deployment_environment, service_name, service_version) (increase(rulesmith_checks_total{outcome=\"error\"}[5m]))) ^ 0), \"service\", \"$1\", \"service_name\", \"(.*)\"), \"environment\", \"$1\", \"deployment_environment\", \"(.*)\")"
               }
             },
             {
@@ -69,15 +70,16 @@
           # Pending period: the condition must hold for 1m before Firing.
           "for": "1m",
           "labels": {
-            "service": "{{ $labels.service_name }}",
-            "environment": "{{ $labels.deployment_environment }}",
+            # `service` and `environment` come from query A (label_replace of
+            # service_name / deployment_environment); Grafana does not expand
+            # {{ }} templates in rule labels as annotations do.
             "owner": "on-call-agent",
             "severity": "critical"
           },
           "annotations": {
             "summary": "{{ humanizePercentage $values.B.Value }} of upload checks failed in the last 5m in {{ $labels.deployment_environment }}",
             "version": "{{ $labels.service_version }}",
-            "dashboard_url": "{{ externalURL }}/d/rulesmith-checks?var-environment={{ $labels.deployment_environment }}"
+            "dashboard_url": "{{ externalURL | reReplaceAll \"/+$\" \"\" }}/d/rulesmith-checks?var-environment={{ $labels.deployment_environment }}"
           }
         }
       ]
