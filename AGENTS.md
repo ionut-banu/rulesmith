@@ -39,5 +39,5 @@ Documents
 - `_docs/team/` - one file per agent role (PM, engineer, QA, on-call)
 - `_docs/plan.md` - product spec
 - `_docs/architecture.md` - stack and design
-- `_docs/deployment.md` - environments, CI/CD, promotion and rollback (once it exists)
+- `_docs/deployment.md` - environments, CI/CD, promotion and rollback
 - `_docs/observability.md` - telemetry, dashboards, alerts (once it exists)

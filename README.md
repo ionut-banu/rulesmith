@@ -93,6 +93,10 @@ make down   # stop and remove containers, keep data
 
 Open http://localhost:8000/datasets. Postgres is not published on a host port.
 
+The app runs as the non-root user `app` (uid 10001). The image's entrypoint
+(`deploy/entrypoint.sh`) starts as root only to create `RULESMITH_UPLOAD_DIR`
+and hand it to `app`, so a root-owned volume (as on Fly) is writable.
+
 Data lives in two named volumes, `rulesmith_pgdata` (Postgres) and
 `rulesmith_uploads` (uploaded files). They survive `make down`. To reset
 all data, run `docker compose down -v`.
@@ -134,6 +138,17 @@ make simulate-failures
 the telemetry. The "Rulesmith — checks" dashboard is provisioned
 automatically, as is the `RulesmithChecksFailing` alert rule (test-only switch
 `RULESMITH_FAIL_UPLOADS`, never for prod). Details and the manual check: [`_docs/observability.md`](_docs/observability.md).
+
+## Deployment
+
+Two public environments on Fly.io in Frankfurt, both running the same image:
+
+- Dev: https://rulesmith-dev.fly.dev
+- Prod: https://rulesmith-prod.fly.dev
+
+Each app runs one machine with its own upload volume and its own Neon
+Postgres database. The image is built once for dev and prod deploys that same
+image. Setup, deploy commands and checks: [`_docs/deployment.md`](_docs/deployment.md).
 
 ## On-call agent
 
@@ -213,7 +228,7 @@ Rulesmith was built spec-first with a team of coding agents.
 | Application | FastAPI + Jinja2/HTMX + SQLite (dev/tests) or Postgres (`RULESMITH_DATABASE_URL`); see *Running locally* |
 | Testing | `tests/` (unit), `tests/integration/` (integration against Docker Compose); `make test`, `make test-integration`, `make test-all` |
 | Containerization | `Dockerfile`, `docker-compose.yaml`, `Makefile`; see *Running with Docker* |
-| Deployment | _TBD_ |
+| Deployment | `deploy/fly.dev.toml`, `deploy/fly.prod.toml`, `_docs/deployment.md` (Fly.io dev + prod, Neon Postgres); see *Deployment* |
 | CI/CD | CI: `.github/workflows/ci.yml` (unit + integration on PR and push to `main`); CD still pending (#22) |
 | Observability | `src/rulesmith/telemetry.py`, `observability/`, `_docs/observability.md`; see *Observability* |
 | Alerting | `observability/grafana/alerting/rulesmith-alerts.yaml`, failure switch `RULESMITH_FAIL_UPLOADS` + `make simulate-failures` (`scripts/simulate_failures.py`), `_docs/observability.md` *Alerting* |

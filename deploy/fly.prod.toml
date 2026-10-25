@@ -1,0 +1,42 @@
+# Fly.io config for the prod environment (app rulesmith-prod). Setup, deploy and
+# verification: _docs/deployment.md. Dev and prod files differ only in the app
+# name and RULESMITH_ENV.
+#
+# No secrets here: the database connection string is a Fly secret. The
+# variables that must never be set on Fly are listed in _docs/deployment.md.
+# RULESMITH_VERSION is set per deploy with `fly deploy --env RULESMITH_VERSION=<tag>`.
+
+app = "rulesmith-prod"
+primary_region = "fra"
+
+[env]
+  RULESMITH_ENV = "prod"
+  RULESMITH_UPLOAD_DIR = "/data/uploads"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Stop the machine when idle; the next request starts it (a few seconds).
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "15s"
+    timeout = "5s"
+    # Room for a cold start, including waking a suspended Neon compute.
+    grace_period = "30s"
+
+# One machine-local volume for uploads. Uploads live only here, so the app runs
+# a single machine (deploy with --ha=false).
+[mounts]
+  source = "rulesmith_data"
+  destination = "/data"
+
+# pandas and pyarrow need more than 256 MB for a 20 MB upload.
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
