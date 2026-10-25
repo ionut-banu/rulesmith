@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from rulesmith import telemetry
+from rulesmith import failure_switch, telemetry
 from rulesmith.db import get_db
 from rulesmith.loader import TableLoadError, load_table
 from rulesmith.models import Dataset, Run, RuleResult, Upload
@@ -146,6 +146,11 @@ async def _process_upload(
             tmp_path.unlink(missing_ok=True)
             raise
     info["row_count"] = len(df)
+
+    if failure_switch.fail_uploads_enabled():
+        # Test-only: fail a valid upload before anything is persisted.
+        tmp_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="Upload failure simulated")
 
     try:
         with telemetry.span("evaluate_rules"):

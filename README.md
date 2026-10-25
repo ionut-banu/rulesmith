@@ -125,11 +125,15 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 uv run uvicorn rulesmith.app:a
 # or, for the Docker stack:
 OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318 make up
 make obs-down
+
+# trip the RulesmithChecksFailing alert (app started with RULESMITH_FAIL_UPLOADS=1)
+make simulate-failures
 ```
 
 `RULESMITH_ENV` (default `local`) and `RULESMITH_VERSION` (default `dev`) label
 the telemetry. The "Rulesmith — checks" dashboard is provisioned
-automatically. Details and the manual check: [`_docs/observability.md`](_docs/observability.md).
+automatically, as is the `RulesmithChecksFailing` alert rule (test-only switch
+`RULESMITH_FAIL_UPLOADS`, never for prod). Details and the manual check: [`_docs/observability.md`](_docs/observability.md).
 
 ## Tests
 
@@ -204,5 +208,5 @@ Rulesmith was built spec-first with a team of coding agents.
 | Deployment | _TBD_ |
 | CI/CD | CI: `.github/workflows/ci.yml` (unit + integration on PR and push to `main`); CD still pending (#22) |
 | Observability | `src/rulesmith/telemetry.py`, `observability/`, `_docs/observability.md`; see *Observability* |
-| Alerting | _TBD_ |
+| Alerting | `observability/grafana/alerting/rulesmith-alerts.yaml`, failure switch `RULESMITH_FAIL_UPLOADS` + `make simulate-failures` (`scripts/simulate_failures.py`), `_docs/observability.md` *Alerting* |
 | On-call agent | _TBD_ |

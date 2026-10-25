@@ -14,6 +14,7 @@ services:
       - lgtm-data:/data
       - ./grafana/rulesmith-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/rulesmith.yaml:ro
       - ./grafana/dashboards:/otel-lgtm/rulesmith-dashboards:ro
+      - ./grafana/alerting/rulesmith-alerts.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/rulesmith-alerts.yaml:ro
 
 volumes:
   lgtm-data:

@@ -16,7 +16,7 @@ from sqlalchemy.pool import StaticPool
 from rulesmith import telemetry
 from rulesmith.app import app
 from rulesmith.db import get_db
-from rulesmith.models import Dataset, Rule, get_session_factory, init_db
+from rulesmith.models import Dataset, Rule, Run, Upload, get_session_factory, init_db
 from rulesmith.routes import uploads as uploads_module
 
 FIXTURES = Path(__file__).parent / "fixtures" / "loader"
@@ -361,3 +361,35 @@ def test_warning_limiter_allows_one_per_signal_per_interval():
     assert limiter.filter(rec(metric_name))
     assert limiter.filter(rec("rulesmith.x"))
     assert limiter.filter(rec("rulesmith.x"))
+
+
+# --- failure switch (RULESMITH_FAIL_UPLOADS) ----------------------------------
+
+
+def test_switch_unset_or_empty_leaves_uploads_normal(env, monkeypatch):
+    dataset_id = _dataset(env)
+    monkeypatch.delenv("RULESMITH_FAIL_UPLOADS", raising=False)
+    assert _upload(env, dataset_id).status_code == 303
+    monkeypatch.setenv("RULESMITH_FAIL_UPLOADS", "")
+    assert _upload(env, dataset_id).status_code == 303
+    assert _outcomes(env) == {"completed": 2}
+
+
+def test_switch_fails_valid_uploads_as_error_without_persisting(env, monkeypatch, tmp_path):
+    monkeypatch.setenv("RULESMITH_FAIL_UPLOADS", "1")
+    monkeypatch.setenv("RULESMITH_ENV", "local")
+    dataset_id = _dataset(env, [("a", "age > 18")])
+    assert _upload(env, dataset_id).status_code == 500
+    assert _outcomes(env) == {"error": 1}
+    assert not (tmp_path / "uploads" / str(dataset_id)).exists()
+    with env.session_factory() as session:
+        assert session.query(Upload).count() == 0
+        assert session.query(Run).count() == 0
+
+
+def test_switch_does_not_turn_rejections_into_errors(env, monkeypatch):
+    monkeypatch.setenv("RULESMITH_FAIL_UPLOADS", "1")
+    dataset_id = _dataset(env)
+    assert _upload(env, dataset_id, "malformed.csv").status_code == 422
+    assert _upload(env, dataset_id, "valid.csv", filename="a.txt").status_code == 422
+    assert _outcomes(env) == {"rejected": 2}

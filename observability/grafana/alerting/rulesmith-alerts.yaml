@@ -1,0 +1,86 @@
+# Grafana alert rules, provisioned from files (read-only in the UI).
+#
+# This file is JSON syntax on purpose: JSON is valid YAML, Grafana reads it as
+# YAML, and the unit test (tests/test_alert_rule.py) can parse it with the
+# standard library after dropping these comment lines (no YAML dependency).
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "rulesmith",
+      "folder": "Rulesmith",
+      # Evaluation interval 1m.
+      "interval": "1m",
+      "rules": [
+        {
+          "uid": "rulesmith-checks-failing",
+          "title": "RulesmithChecksFailing",
+          "condition": "C",
+          "data": [
+            {
+              # Query A returns, per environment, the error ratio over 5m, but
+              # only when there were at least 3 errors (the floor, so one or
+              # two unlucky requests never fire). "rejected" is excluded from
+              # numerator and denominator: user mistakes (bad extension,
+              # malformed file, ...) can neither trigger nor dilute the alert.
+              # The ratio carries the service_version of the series with the
+              # most errors, for the `version` annotation. No traffic or no
+              # errors give an empty result, which is "no data" (see below).
+              "refId": "A",
+              "relativeTimeRange": { "from": 600, "to": 0 },
+              "datasourceUid": "prometheus",
+              "model": {
+                "refId": "A",
+                "instant": true,
+                "expr": "((sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=\"error\"}[5m])) / sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=~\"completed|error\"}[5m]))) and on (deployment_environment, service_name) (sum by (deployment_environment, service_name) (increase(rulesmith_checks_total{outcome=\"error\"}[5m])) >= 3)) * on (deployment_environment, service_name) group_left (service_version) (topk by (deployment_environment, service_name) (1, sum by (deployment_environment, service_name, service_version) (increase(rulesmith_checks_total{outcome=\"error\"}[5m]))) ^ 0)"
+              }
+            },
+            {
+              "refId": "B",
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "reduce",
+                "expression": "A",
+                "reducer": "last",
+                "settings": { "mode": "dropNN" }
+              }
+            },
+            {
+              # Fires (1) when errors / checks >= 20%; math, because the
+              # threshold expression has no ">=".
+              "refId": "C",
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "math",
+                "expression": "$B >= 0.2"
+              }
+            }
+          ],
+          # No traffic (or fewer than 3 errors) makes query A empty. That is
+          # healthy, so no data resolves to Normal rather than alerting.
+          "noDataState": "OK",
+          # A failing query (Prometheus down, bad config) is surfaced as an
+          # alert instance in the Error state instead of silently reading as
+          # healthy: a blind alert is worse than a noisy one.
+          "execErrState": "Error",
+          # Pending period: the condition must hold for 1m before Firing.
+          "for": "1m",
+          "labels": {
+            "service": "{{ $labels.service_name }}",
+            "environment": "{{ $labels.deployment_environment }}",
+            "owner": "on-call-agent",
+            "severity": "critical"
+          },
+          "annotations": {
+            "summary": "{{ humanizePercentage $values.B.Value }} of upload checks failed in the last 5m in {{ $labels.deployment_environment }}",
+            "version": "{{ $labels.service_version }}",
+            "dashboard_url": "{{ externalURL }}/d/rulesmith-checks?var-environment={{ $labels.deployment_environment }}"
+          }
+        }
+      ]
+    }
+  ]
+}

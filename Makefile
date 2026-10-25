@@ -1,4 +1,4 @@
-.PHONY: up down logs test test-integration test-all obs-up obs-down
+.PHONY: up down logs test test-integration test-all obs-up obs-down simulate-failures
 
 # Integration tests run in their own compose project so they never touch the
 # volumes (rulesmith_pgdata, rulesmith_uploads) of a developer's dev stack.
@@ -53,3 +53,10 @@ obs-up:
 
 obs-down:
 	docker compose -f observability/docker-compose.yaml down
+
+# Needs a local app started with RULESMITH_FAIL_UPLOADS=1; see
+# scripts/simulate_failures.py and _docs/observability.md. Override the target
+# with BASE_URL=http://host:port.
+BASE_URL ?= http://localhost:8000
+simulate-failures:
+	uv run python scripts/simulate_failures.py --base-url $(BASE_URL)
