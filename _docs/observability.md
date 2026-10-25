@@ -39,7 +39,9 @@ filter every panel.
 2. Create a dataset with a rule, upload a CSV to it.
 3. Grafana > Explore > Tempo: search `{ resource.service.name = "rulesmith" }`.
    Open the `POST /datasets/{dataset_id}/uploads` trace: it has child spans
-   `load_file`, `evaluate_rules`, `persist_results` and SQL spans.
+   `load_file`, `evaluate_rules`, `persist_results` and one span per SQL
+   statement (`db.statement` holds the parametrised text with placeholders;
+   bound parameter values are never recorded).
 4. From the span use "Logs for this span", or in Explore > Loki run
    `{service_name="rulesmith"} | trace_id="<trace id>"`.
 5. Open the "Rulesmith — checks" dashboard (metrics arrive within ~15 s):
@@ -54,7 +56,7 @@ stack.
 
 | Metric | Type | Labels |
 |---|---|---|
-| `rulesmith_checks_total` | counter, +1 per upload request | `outcome` = `completed` / `rejected` / `error` |
+| `rulesmith_checks_total` | counter, +1 per upload request (a POST with no `file` part counts as `rejected`) | `outcome` = `completed` / `rejected` / `error` |
 | `rulesmith_check_duration_seconds` (`_bucket`, `_sum`, `_count`) | histogram | `outcome` |
 | `rulesmith_rules_evaluated_total` | counter, +1 per rule per completed run | `verdict` = `pass` / `fail` / `broken` |
 

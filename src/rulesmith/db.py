@@ -11,7 +11,8 @@ import time, so importing this module has no side effects on disk.
 import os
 from functools import lru_cache
 
-from sqlalchemy import Engine, create_engine
+import sqlalchemy
+from sqlalchemy import Engine
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
@@ -42,7 +43,10 @@ def build_engine(url: str) -> Engine:
 
         Path(parsed.database).parent.mkdir(parents=True, exist_ok=True)
 
-    return create_engine(parsed)
+    # Looked up on the module at call time, not imported by name: the OpenTelemetry
+    # SQLAlchemy instrumentation replaces `sqlalchemy.create_engine`, and a name
+    # bound at import time would bypass it (leaving only `connect` spans).
+    return sqlalchemy.create_engine(parsed)
 
 
 @lru_cache(maxsize=1)

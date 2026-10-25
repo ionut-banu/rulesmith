@@ -56,7 +56,9 @@ def _render_upload_error(request: Request, dataset: Dataset, db: Session, error:
 async def upload_file(
     dataset_id: int,
     request: Request,
-    file: UploadFile = File(...),
+    # Optional so a request without a `file` part reaches the handler (and is
+    # counted as rejected) instead of failing FastAPI validation uncounted.
+    file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
     """Telemetry wrapper: one check metric and one log record per request.
@@ -91,11 +93,14 @@ async def upload_file(
 
 
 async def _process_upload(
-    dataset_id: int, request: Request, file: UploadFile, db: Session, info: dict
+    dataset_id: int, request: Request, file: UploadFile | None, db: Session, info: dict
 ):
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    if file is None:
+        return _render_upload_error(request, dataset, db, "No file was uploaded.", 422)
 
     original_filename = file.filename or ""
     ext = Path(original_filename).suffix.lower()

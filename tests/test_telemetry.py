@@ -10,7 +10,7 @@ from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind, StatusCode
-from sqlalchemy import create_engine
+import sqlalchemy
 from sqlalchemy.pool import StaticPool
 
 from rulesmith import telemetry
@@ -39,7 +39,7 @@ def env(tmp_path, monkeypatch):
     telemetry.activate(app, tel)
 
     # Created after activation so the SQLAlchemy instrumentation sees the engine.
-    engine = create_engine(
+    engine = sqlalchemy.create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
@@ -119,8 +119,11 @@ def test_upload_span_has_child_spans_and_instrumented_db_spans(env):
     for name in ("load_file", "evaluate_rules", "persist_results"):
         assert by_name[name].parent.span_id == server.context.span_id
         assert by_name[name].context.trace_id == server.context.trace_id
-    db_spans = [s for s in spans if s.attributes.get("db.system") == "sqlite"]
-    assert db_spans
+    # Statement spans (not just `connect`) carry the parametrised SQL text.
+    statements = [s.attributes["db.statement"] for s in spans if "db.statement" in s.attributes]
+    assert any(st.lstrip().upper().startswith("SELECT") for st in statements)
+    assert any(st.lstrip().upper().startswith("INSERT") for st in statements)
+    assert all(s.attributes.get("db.system") == "sqlite" for s in spans if "db.statement" in s.attributes)
 
 
 def test_unhandled_exception_ends_spans_with_error_status_and_no_message(env, monkeypatch):
@@ -177,6 +180,21 @@ def test_rejections_are_counted_as_rejected(env, monkeypatch):
 
     assert _outcomes(env) == {"rejected": 4}
     assert _points(env, "rulesmith_rules_evaluated") == {}
+
+
+def test_request_without_file_part_is_counted_once_as_rejected(env):
+    dataset_id = _dataset(env)
+    env.spans.clear()
+    env.logs.clear()
+    response = env.client.post(f"/datasets/{dataset_id}/uploads", data={"x": "y"})
+    assert response.status_code == 422
+
+    assert _outcomes(env) == {"rejected": 1}
+    records = [
+        r.log_record for r in env.logs.get_finished_logs() if r.log_record.body == "upload checked"
+    ]
+    assert len(records) == 1
+    assert records[0].attributes["outcome"] == "rejected"
 
 
 def test_storage_failure_is_counted_as_error(env, monkeypatch):
@@ -280,6 +298,7 @@ def test_otlp_log_handler_exports_exception_type_only(env):
 def test_marker_in_filename_and_rule_expression_appears_nowhere(env, capsys):
     dataset_id = _dataset(env, [(f"r-{MARKER}", f"age > 0 and name != '{MARKER}'")])
     assert _upload(env, dataset_id, filename=f"{MARKER}.csv").status_code == 303
+    first_spans = list(env.spans.get_finished_spans())
     assert _upload(env, dataset_id, "malformed.csv", filename=f"{MARKER}.csv").status_code == 422
     assert _upload(env, dataset_id, filename=f"{MARKER}.txt").status_code == 422
 
@@ -287,7 +306,14 @@ def test_marker_in_filename_and_rule_expression_appears_nowhere(env, capsys):
         __import__("sqlalchemy").text("select expression from rules")
     ).scalar())  # sanity: the marker really is in the database
 
-    assert MARKER not in "".join(s.to_json() for s in env.spans.get_finished_spans())
+    spans = first_spans + list(env.spans.get_finished_spans())
+    # The upload's INSERT (which binds the marker file name) was traced, with
+    # placeholders only: the marker is a bound parameter and must not show up.
+    assert any(
+        s.attributes.get("db.statement", "").lstrip().upper().startswith("INSERT INTO UPLOADS")
+        for s in spans
+    )
+    assert MARKER not in "".join(s.to_json() for s in spans)
     data = env.reader.get_metrics_data()
     assert MARKER not in repr([m.data.data_points for rm in data.resource_metrics
                                for sm in rm.scope_metrics for m in sm.metrics])
