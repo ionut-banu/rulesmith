@@ -46,7 +46,9 @@ def build_engine(url: str) -> Engine:
     # Looked up on the module at call time, not imported by name: the OpenTelemetry
     # SQLAlchemy instrumentation replaces `sqlalchemy.create_engine`, and a name
     # bound at import time would bypass it (leaving only `connect` spans).
-    return sqlalchemy.create_engine(parsed)
+    # pool_pre_ping: Neon closes connections when it autosuspends an idle
+    # compute; pinging on checkout replaces them instead of failing a request.
+    return sqlalchemy.create_engine(parsed, pool_pre_ping=True)
 
 
 @lru_cache(maxsize=1)
