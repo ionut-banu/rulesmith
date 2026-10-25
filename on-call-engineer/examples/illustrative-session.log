@@ -1,0 +1,22 @@
+# ILLUSTRATIVE EXAMPLE - NOT A REAL RUN.
+# Hand-written to show the shape of a session log. It was not produced by
+# `claude`, Grafana or the Rulesmith app. A human should replace it with a real
+# captured log after running the drill in on-call-engineer/README.md.
+# Contains no secrets, file contents, file names or row values.
+
+I'll start by reading the alert and the observability doc.
+Alert: RulesmithChecksFailing, environment=local, version=dev,
+summary="100% of upload checks failed in the last 5m in local".
+
+Read _docs/observability.md (Alerting section): the alert measures the ratio of
+rulesmith_checks_total{outcome="error"} to completed+error over 5 minutes.
+
+Reproducing: wrote tests/test_uploads_routes.py::test_valid_upload_returns_201_regression
+-> uv run pytest tests/test_uploads_routes.py  ... 1 failed
+Root cause: (example) the upload route raises for valid files after a recent change.
+Fix: minimal change in the upload route.
+-> uv run pytest ... 240 passed
+
+git add -A && git commit -m "fix(on-call): RulesmithChecksFailing - valid uploads no longer raise"
+gh issue create --title "Incident: RulesmithChecksFailing" --body "..."
+Done. Branch on-call/RulesmithChecksFailing-abc12345 is ready for human review; not pushed.

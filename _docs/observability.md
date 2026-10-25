@@ -89,6 +89,7 @@ alerting is a known gap (see below).
   Normal (`noDataState: OK`); a query error shows as Error (`execErrState:
   Error`) rather than silently reading as healthy. Both are commented in the file.
 - Labels: `service`, `environment`, `owner="on-call-agent"`, `severity`.
+  `on-call-engineer/poller.py` (`make on-call`) picks up alerts with that owner.
   Annotations: `summary` (percentage and environment), `version` (the
   `service_version` with the most errors), `dashboard_url` (this dashboard
   filtered to the environment). Only ids, ratios, environment and version names.

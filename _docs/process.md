@@ -26,6 +26,7 @@ Roles
 - Engineer - implements one groomed task, follows `_docs/team/software-engineer.md`
 - QA - checks the result against the acceptance criteria, follows `_docs/team/qa-engineer.md`
 - On-call - woken by an alert, not by an issue; finds the root cause and ships
-  the smallest tested fix, follows `_docs/team/on-call-engineer.md`
+  the smallest tested fix, follows `_docs/team/on-call-engineer.md`; the poller that wakes it is
+  `on-call-engineer/poller.py` (`make on-call`)
 
 Each role is also available as a subagent in `.claude/agents/`.

@@ -1,4 +1,4 @@
-.PHONY: up down logs test test-integration test-all obs-up obs-down simulate-failures
+.PHONY: up down logs test test-integration test-all obs-up obs-down simulate-failures on-call
 
 # Integration tests run in their own compose project so they never touch the
 # volumes (rulesmith_pgdata, rulesmith_uploads) of a developer's dev stack.
@@ -60,3 +60,8 @@ obs-down:
 BASE_URL ?= http://localhost:8000
 simulate-failures:
 	uv run python scripts/simulate_failures.py --base-url $(BASE_URL)
+
+# Poll Grafana and start the on-call agent for new alerts; see
+# on-call-engineer/README.md. Pass flags with ARGS="--once --dry-run".
+on-call:
+	uv run python on-call-engineer/poller.py $(ARGS)

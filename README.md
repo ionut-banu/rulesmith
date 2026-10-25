@@ -135,6 +135,14 @@ the telemetry. The "Rulesmith — checks" dashboard is provisioned
 automatically, as is the `RulesmithChecksFailing` alert rule (test-only switch
 `RULESMITH_FAIL_UPLOADS`, never for prod). Details and the manual check: [`_docs/observability.md`](_docs/observability.md).
 
+## On-call agent
+
+`make on-call` polls Grafana (`make obs-up` stack) and starts a headless
+`claude -p` session in the on-call role for each new `RulesmithChecksFailing`
+alert; the agent works on its own `on-call/...` branch and cannot push or
+deploy. Try it without side effects: `make on-call ARGS="--once --dry-run"`.
+Prerequisites, permission model and the end-to-end drill: [`on-call-engineer/README.md`](on-call-engineer/README.md).
+
 ## Tests
 
 | Command | What it does | Needs |
@@ -209,4 +217,4 @@ Rulesmith was built spec-first with a team of coding agents.
 | CI/CD | CI: `.github/workflows/ci.yml` (unit + integration on PR and push to `main`); CD still pending (#22) |
 | Observability | `src/rulesmith/telemetry.py`, `observability/`, `_docs/observability.md`; see *Observability* |
 | Alerting | `observability/grafana/alerting/rulesmith-alerts.yaml`, failure switch `RULESMITH_FAIL_UPLOADS` + `make simulate-failures` (`scripts/simulate_failures.py`), `_docs/observability.md` *Alerting* |
-| On-call agent | _TBD_ |
+| On-call agent | `on-call-engineer/` (`poller.py`, its `README.md`), `make on-call`, role in `_docs/team/on-call-engineer.md`; see *On-call agent* |
