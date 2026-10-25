@@ -12,8 +12,12 @@ RUN useradd --system --uid 10001 --create-home app \
     && mkdir -p /var/lib/rulesmith/uploads \
     && chown -R app:app /var/lib/rulesmith
 COPY --from=builder /app/.venv /app/.venv
+COPY --chmod=755 deploy/entrypoint.sh /usr/local/bin/rulesmith-entrypoint
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
-USER app
+# No `USER app` here: the entrypoint starts as root only to make a root-owned
+# volume (Fly mounts them that way) writable, then runs the CMD as `app`
+# (uid 10001) via setpriv. See deploy/entrypoint.sh.
 WORKDIR /home/app
 EXPOSE 8000
+ENTRYPOINT ["rulesmith-entrypoint"]
 CMD ["uvicorn", "rulesmith.app:app", "--host", "0.0.0.0", "--port", "8000"]
