@@ -1,0 +1,116 @@
+# Deploy an image that is already in registry.fly.io/rulesmith-dev to
+# rulesmith-prod, then fail unless prod reports that tag on /health. Prod
+# never rebuilds. Running it with an older tag is the rollback; it changes the
+# image and RULESMITH_VERSION, not the Fly config (deploy/fly.prod.toml comes
+# from main at the time of the run). See _docs/deployment.md
+# (Continuous deployment).
+#
+# The Fly token is the production environment's FLY_API_TOKEN (a
+# rulesmith-prod deploy token). The tag input reaches shell commands only
+# through `env:`.
+name: Promote prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Image tag to deploy to prod, in the format YYYYMMDD-HHMMSS-<sha7>
+          (for example 20261107-101500-abc1234). Tags are listed in the
+          Deploy dev run summaries. An older tag rolls back.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One promotion at a time, never cancelled half way.
+concurrency:
+  group: promote-prod
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      TAG: ${{ inputs.tag }}
+      PROD_URL: https://rulesmith-prod.fly.dev
+    steps:
+      - name: Check the tag
+        id: validate
+        run: |
+          if [[ ! "$TAG" =~ ^[0-9]{8}-[0-9]{6}-[0-9a-f]{7}$ ]]; then
+            # Non-printable characters (such as a newline) are shown as '?',
+            # so the value cannot start a new workflow command line.
+            echo "::error::invalid tag: ${TAG//[^[:print:]]/?}"
+            exit 1
+          fi
+          echo "Tag: $TAG"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+        with:
+          version: 0.5.5
+      - name: Check the image exists
+        id: image
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl auth docker
+          if ! out="$(docker manifest inspect "registry.fly.io/rulesmith-dev:$TAG" 2>&1 >/dev/null)"; then
+            echo "::error::cannot find registry.fly.io/rulesmith-dev:$TAG in the registry: ${out//[^[:print:]]/ }"
+            exit 1
+          fi
+          echo "Found registry.fly.io/rulesmith-dev:$TAG"
+      # Never fails the job: anything but a well-formed version is "unknown".
+      - name: Record the version prod reports now
+        continue-on-error: true
+        run: |
+          previous="$(curl -fsS --max-time 30 --retry 2 --retry-all-errors "$PROD_URL/health" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin).get("version", ""))' 2>/dev/null)" || true
+          if [[ ! "$previous" =~ ^[0-9]{8}-[0-9]{6}-[0-9a-f]{7}$ ]]; then
+            previous=unknown
+          fi
+          echo "PREVIOUS=$previous" >> "$GITHUB_ENV"
+          echo "Previous version: $previous"
+      - name: Deploy to rulesmith-prod
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --config deploy/fly.prod.toml \
+            --image "registry.fly.io/rulesmith-dev:$TAG" \
+            --ha=false --env RULESMITH_VERSION="$TAG"
+      - name: Check prod reports the tag
+        id: check
+        run: python3 scripts/wait_for_version.py --url https://rulesmith-prod.fly.dev/health --expect "$TAG"
+      - name: Summary
+        if: always()
+        env:
+          VALID: ${{ steps.validate.outcome }}
+          IMAGE: ${{ steps.image.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+        run: |
+          {
+            echo "## Promote prod"
+            echo
+            if [ "$VALID" != "success" ]; then
+              echo "Rejected: the tag is not in the format YYYYMMDD-HHMMSS-<sha7>. Nothing was deployed."
+              exit 0
+            fi
+            if [ "$IMAGE" != "success" ]; then
+              echo "Rejected: \`registry.fly.io/rulesmith-dev:$TAG\` could not be found in the registry (see the log). Nothing was deployed."
+              exit 0
+            fi
+            echo "- Previous version: \`${PREVIOUS:-unknown}\`"
+            echo "- New tag: \`$TAG\`"
+            echo "- Image: \`registry.fly.io/rulesmith-dev:$TAG\`"
+            echo "- Version check: ${CHECK:-not run}"
+            if [ -n "$PREVIOUS" ] && [ "$PREVIOUS" != "unknown" ]; then
+              echo
+              echo "To roll back: run Promote prod with tag $PREVIOUS"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
