@@ -135,7 +135,8 @@ make simulate-failures
 ```
 
 `RULESMITH_ENV` (default `local`) and `RULESMITH_VERSION` (default `dev`) label
-the telemetry. The "Rulesmith — checks" dashboard is provisioned
+the telemetry, and `GET /health` reports the version
+(`{"status": "ok", "version": "dev"}`). The "Rulesmith — checks" dashboard is provisioned
 automatically, as is the `RulesmithChecksFailing` alert rule (test-only switch
 `RULESMITH_FAIL_UPLOADS`, never for prod). Details and the manual check: [`_docs/observability.md`](_docs/observability.md).
 
@@ -149,6 +150,12 @@ Two public environments on Fly.io in Frankfurt, both running the same image:
 Each app runs one machine with its own upload volume and its own Neon
 Postgres database. The image is built once for dev and prod deploys that same
 image. Setup, deploy commands and checks: [`_docs/deployment.md`](_docs/deployment.md).
+
+Every push to `main` that passes CI is built once and deployed to dev
+automatically by the `Deploy dev` workflow, which fails unless dev then
+reports the new tag on `/health`. Prod is promoted by hand: a human runs
+`Promote prod` with a tag, and running it with an older tag is the rollback.
+See [*Continuous deployment*](_docs/deployment.md#continuous-deployment).
 
 ## On-call agent
 
@@ -200,6 +207,12 @@ them as required checks (branch protection on `main`; not set up yet, so CI
 reports failures but does not block merging). New pushes to a PR cancel its
 stale run; runs on `main` are never cancelled.
 
+CI still uses no secrets, and `ci.yml` does not deploy. On `main`, the
+separate `Deploy dev` workflow (`.github/workflows/deploy-dev.yml`) follows a
+CI run that passed and deploys that commit to dev; `Promote prod`
+(`.github/workflows/promote-prod.yml`) is run by hand. Both are described in
+[`_docs/deployment.md`](_docs/deployment.md#continuous-deployment).
+
 ## How this was built
 
 Rulesmith was built spec-first with a team of coding agents.
@@ -229,7 +242,7 @@ Rulesmith was built spec-first with a team of coding agents.
 | Testing | `tests/` (unit), `tests/integration/` (integration against Docker Compose); `make test`, `make test-integration`, `make test-all` |
 | Containerization | `Dockerfile`, `docker-compose.yaml`, `Makefile`; see *Running with Docker* |
 | Deployment | `deploy/fly.dev.toml`, `deploy/fly.prod.toml`, `_docs/deployment.md` (Fly.io dev + prod, Neon Postgres); see *Deployment* |
-| CI/CD | CI: `.github/workflows/ci.yml` (unit + integration on PR and push to `main`); CD still pending (#22) |
+| CI/CD | CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml), unit + integration on PR and push to `main`) → CD to dev ([`.github/workflows/deploy-dev.yml`](.github/workflows/deploy-dev.yml), after CI passes on `main`) → manual prod ([`.github/workflows/promote-prod.yml`](.github/workflows/promote-prod.yml), promotion and rollback by tag); see `_docs/deployment.md` [*Continuous deployment*](_docs/deployment.md#continuous-deployment) |
 | Observability | `src/rulesmith/telemetry.py`, `observability/`, `_docs/observability.md`; see *Observability* |
 | Alerting | `observability/grafana/alerting/rulesmith-alerts.yaml`, failure switch `RULESMITH_FAIL_UPLOADS` + `make simulate-failures` (`scripts/simulate_failures.py`), `_docs/observability.md` *Alerting* |
 | On-call agent | `on-call-engineer/` (`poller.py`, its `README.md`), `make on-call`, role in `_docs/team/on-call-engineer.md`; see *On-call agent* |
