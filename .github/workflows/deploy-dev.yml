@@ -1,0 +1,140 @@
+# Build the commit CI just tested on main once, push it to
+# registry.fly.io/rulesmith-dev:<tag>, deploy it to rulesmith-dev, and fail
+# unless dev then reports that tag on /health. Prod is promoted by hand with
+# promote-prod.yml. Flow, tags and rollback: _docs/deployment.md
+# (Continuous deployment).
+#
+# The Fly token is the dev environment's FLY_API_TOKEN (a rulesmith-dev deploy
+# token). It is only read in the jobs that declare `environment: dev`.
+# Untrusted event values reach shell commands only through `env:`.
+name: Deploy dev
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One deploy at a time, never cancelled half way.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  # Runs only for a successful CI run on a push to main (never for a PR or a
+  # failed run). If main has moved on since, it skips the deploy so dev never
+  # goes backwards when CI runs finish out of order: the newer commit's own
+  # run deploys it.
+  check-head:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      current: ${{ steps.head.outputs.current }}
+    steps:
+      - name: Check the commit is still the head of main
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [ "$main_sha" = "$HEAD_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+            echo "Deploying ${HEAD_SHA:0:7}, the head of main."
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::skipped: main is now at ${main_sha:0:7}"
+            echo "skipped: main is now at ${main_sha:0:7}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  build:
+    needs: check-head
+    if: >-
+      github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+      && needs.check-head.outputs.current == 'true'
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 20
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: 0.4.122
+      - name: Compute the tag
+        id: tag
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [[ ! "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::unexpected head_sha"
+            exit 1
+          fi
+          TAG="$(date -u +%Y%m%d-%H%M%S)-${HEAD_SHA:0:7}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Tag: $TAG"
+      # Build and push only. deploy-dev deploys the pushed image, so re-running
+      # a failed deploy-dev deploys the same tag without rebuilding.
+      - name: Build and push the image
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy . --config deploy/fly.dev.toml --dockerfile Dockerfile \
+            --build-only --push --image-label "$TAG"
+          echo "Built and pushed \`registry.fly.io/rulesmith-dev:$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-dev:
+    needs: build
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 15
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      DEV_URL: https://rulesmith-dev.fly.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: 0.4.122
+      - name: Deploy to rulesmith-dev
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --config deploy/fly.dev.toml \
+            --image "registry.fly.io/rulesmith-dev:$TAG" \
+            --ha=false --env RULESMITH_VERSION="$TAG"
+      - name: Check dev reports the tag
+        id: check
+        run: python3 scripts/wait_for_version.py --url https://rulesmith-dev.fly.dev/health --expect "$TAG"
+      - name: Summary
+        if: always()
+        env:
+          CHECK: ${{ steps.check.outcome }}
+        run: |
+          {
+            echo "## Deploy dev"
+            echo
+            echo "- Tag: \`$TAG\`"
+            echo "- Image: \`registry.fly.io/rulesmith-dev:$TAG\`"
+            echo "- URL: $DEV_URL"
+            echo "- Version check: $CHECK"
+            echo
+            if [ "$CHECK" = "success" ]; then
+              echo "To promote: run Promote prod with tag $TAG"
+            else
+              echo "Dev does not report $TAG, so do not promote it. A failed check does not roll back."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

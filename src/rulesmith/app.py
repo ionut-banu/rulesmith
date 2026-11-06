@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -35,7 +36,9 @@ def index() -> RedirectResponse:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    # The deploy workflows check this to prove the expected release answers.
+    # "dev" when unset or empty, the same default telemetry uses.
+    return {"status": "ok", "version": os.environ.get("RULESMITH_VERSION") or "dev"}
 
 
 telemetry.setup(app)
