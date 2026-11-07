@@ -157,7 +157,7 @@ a human runs Promote prod with <tag> ──> check the tag format
 | Workflow | File | Trigger | Environment (token) |
 |---|---|---|---|
 | `Deploy dev` | [`.github/workflows/deploy-dev.yml`](../.github/workflows/deploy-dev.yml) | `workflow_run` of `CI` on `main`; runs only when CI passed on a push, never for a PR | `dev` (`rulesmith-dev` deploy token) |
-| `Promote prod` | [`.github/workflows/promote-prod.yml`](../.github/workflows/promote-prod.yml) | `workflow_dispatch` on `main`, required input `tag` | `production` (`rulesmith-prod` deploy token, required reviewer) |
+| `Promote prod` | [`.github/workflows/promote-prod.yml`](../.github/workflows/promote-prod.yml) | `workflow_dispatch` on `main`, required input `tag` | `production` (org token for `personal`, required reviewer) |
 
 - **Tags** have the format `YYYYMMDD-HHMMSS-<sha7>`: the UTC build time, then
   the first 7 characters of the commit. The tag is the image label and the
@@ -178,7 +178,10 @@ a human runs Promote prod with <tag> ──> check the tag format
 - **Tokens.** Each job that talks to Fly runs in a GitHub environment, `dev`
   or `production`, and reads that environment's `FLY_API_TOKEN`. There is no
   repository-level token, so `CI` sees neither token, and the dev jobs cannot
-  touch prod. Setup is H1 to H5 under *Needs a human*.
+  touch prod. Dev uses a deploy token scoped to `rulesmith-dev`. Prod needs
+  an org token, because a token scoped to `rulesmith-prod` is refused an
+  image owned by `rulesmith-dev` (see H3). Setup is H1 to H4 under
+  *Needs a human*.
 
 ### The version check
 
@@ -268,9 +271,10 @@ fly deploy --config deploy/fly.prod.toml \
 command in the same shell as the dev one, or set `TAG` to the dev tag first.
 
 If the prod deploy cannot pull `registry.fly.io/rulesmith-dev:<tag>`
-(an authorization or "not found" error), the two apps are probably in
-different organizations. Report it on the issue rather than rebuilding for
-prod.
+(`Not authorized to access this imageref` or "not found"), check that you
+are logged in with an account or token that can read `rulesmith-dev`, and
+that both apps are in the same organization. Report it on the issue rather
+than rebuilding for prod.
 
 ## Must never be set on Fly
 
@@ -358,7 +362,7 @@ human does everything that creates or changes something:
 - GitHub environments and secrets, merges and pushes to `main`, and running
   or approving `Promote prod`
 
-### CD setup (H1 to H5)
+### CD setup (H1 to H4)
 
 Run these from a shell where `fly auth whoami` and `gh auth status` work for
 the repo owner (`ionut-banu`). Each token goes straight from `fly` into `gh`
@@ -392,13 +396,22 @@ fly tokens create deploy --app rulesmith-dev --name github-cd-dev --expiry 8760h
   | tr -d '\n' | gh secret set FLY_API_TOKEN --env dev --repo ionut-banu/rulesmith
 ```
 
-**H3. Create a prod deploy token (`rulesmith-prod` only, one year) and
-store it in the `production` environment.**
+**H3. Create an org token for `personal` (one year) and store it in the
+`production` environment.**
 
 ```bash
-fly tokens create deploy --app rulesmith-prod --name github-cd-prod --expiry 8760h \
+fly tokens create org --org personal --name github-cd-prod-org --expiry 8760h \
   | tr -d '\n' | gh secret set FLY_API_TOKEN --env production --repo ionut-banu/rulesmith
 ```
+
+A deploy token scoped to `rulesmith-prod` is not enough. The first
+`Promote prod` run with one passed *Check the image exists* and then failed
+in `fly deploy` with `Not authorized to access this imageref`, because the
+image belongs to `rulesmith-dev`. The org token can manage every app in
+`personal`. It is held only by the `production` environment, which is
+limited to `main` and gated by the required reviewer. Do not work around a
+narrower token by rebuilding or copying the image for prod: promotion must
+deploy the exact image dev ran.
 
 **H4. Check the setup.**
 
@@ -408,29 +421,15 @@ gh secret list --env dev --repo ionut-banu/rulesmith                         # F
 gh secret list --env production --repo ionut-banu/rulesmith                  # FLY_API_TOKEN
 gh secret list --repo ionut-banu/rulesmith                                   # empty: no repo-level token
 fly tokens list --app rulesmith-dev                                          # github-cd-dev
-fly tokens list --app rulesmith-prod                                         # github-cd-prod
-```
-
-**H5. Fallback, only if `Promote prod` fails with an authorization error on
-`registry.fly.io/rulesmith-dev:<tag>`.** Replace the prod secret with an
-org-scoped token, which can read dev's registry, then revoke the unused
-per-app prod token. This token is broader: it can manage every app in
-`personal`. It is held only by the `production` environment, behind the
-reviewer gate. Record on the issue that the fallback was used. Do not work
-around the error by rebuilding or copying the image.
-
-```bash
-fly tokens create org --org personal --name github-cd-prod-org --expiry 8760h \
-  | tr -d '\n' | gh secret set FLY_API_TOKEN --env production --repo ionut-banu/rulesmith
-fly tokens list --app rulesmith-prod      # find the id of github-cd-prod
-fly tokens revoke <ID>
+fly tokens list --scope org --org personal                                   # github-cd-prod-org
 ```
 
 **Token rotation.** Tokens expire after one year. When CD starts failing
 with an authentication error, or to rotate early:
 
 ```bash
-fly tokens list --app <app>     # rulesmith-dev or rulesmith-prod: find the old token's id
+fly tokens list --app rulesmith-dev              # dev: find the old token's id
+fly tokens list --scope org --org personal       # prod: find the old token's id
 fly tokens revoke <id>
 ```
 
@@ -439,8 +438,8 @@ you can run H2 or H3 first and revoke the old id afterwards.
 
 ## Known gaps
 
-- Prod deploys with a per-app token are unproven until the first
-  `Promote prod` run. H5 is the fallback.
+- The prod token is org-scoped, so it could deploy to any app in
+  `personal`, not only `rulesmith-prod` (see H3).
 - No automatic rollback. A failed version check leaves the new release
   running; roll back by hand with `Promote prod`.
 - `Promote prod` checks that a tag is in the registry, not that it was
