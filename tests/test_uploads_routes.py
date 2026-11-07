@@ -122,6 +122,23 @@ def test_uploaded_file_is_retained_on_disk(client):
     assert stored_path.read_bytes() == (FIXTURES / "valid.csv").read_bytes()
 
 
+def test_stored_path_is_persisted_as_a_string(client):
+    """`stored_path` is a `String` column, so a `Path` cannot be bound to it.
+
+    Regression test for alert RulesmithChecksFailing: handing the column a
+    `Path` made every otherwise-valid upload 500 on commit, counted as
+    `outcome="error"`.
+    """
+    dataset_id = _make_dataset(client)
+
+    response = _upload(client, dataset_id, "valid.csv")
+
+    assert response.status_code == 303
+    with client.session_factory() as session:
+        upload = session.query(Upload).one()
+    assert isinstance(upload.stored_path, str)
+
+
 def test_malformed_file_creates_no_rows_and_no_file(client):
     dataset_id = _make_dataset(client)
 
