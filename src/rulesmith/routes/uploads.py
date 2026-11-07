@@ -182,7 +182,7 @@ async def _process_upload(
         upload = Upload(
             dataset_id=dataset.id,
             original_filename=original_filename,
-            stored_path=str(final_path),
+            stored_path=final_path,
             format=file_format,
         )
         db.add(upload)
