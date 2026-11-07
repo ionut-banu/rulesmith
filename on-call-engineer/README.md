@@ -44,7 +44,8 @@ Environment: `GRAFANA_URL` (default `http://localhost:3000`), `GRAFANA_USER` /
   `--once` it exits 1). If `claude` or the role file is missing it exits non-zero.
 - Each session's stdout+stderr goes to
   `on-call-engineer/logs/<UTC timestamp>-<alertname>.log` (gitignored). A
-  committed *illustrative* example: `examples/illustrative-session.log`.
+  real drill run, with the session log and what happened at each step:
+  [`examples/2026-11-07-drill/`](examples/2026-11-07-drill/).
 
 ## Permission model
 
@@ -65,7 +66,11 @@ ids, ratios, environment and version are in them, never file contents or row val
    `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`. Fallback that exercises
    only the alert path: start the app with `RULESMITH_FAIL_UPLOADS=1` (see
    `_docs/observability.md`, *Alerting*).
-3. `make simulate-failures` so uploads return 500.
+3. `make simulate-failures` so uploads return 500. For the drill, keep the
+   failures going until the agent starts, with
+   `uv run python scripts/simulate_failures.py --duration 600`: the alert
+   resolves about 5 minutes after the last error, and the poller only handles
+   alerts that are firing.
 4. After about 2-3 minutes `RulesmithChecksFailing` fires (check
    http://localhost:3000/alerting/list).
 5. `make on-call ARGS="--once --dry-run"` shows what would run; then `make on-call`.

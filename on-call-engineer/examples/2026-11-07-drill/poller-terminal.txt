@@ -1,0 +1,3 @@
+uv run python on-call-engineer/poller.py --once
+[on-call] starting session for RulesmithChecksFailing on on-call/RulesmithChecksFailing-4e96aff3
+[on-call] RulesmithChecksFailing: session finished; log 20261107T163823Z-RulesmithChecksFailing.log

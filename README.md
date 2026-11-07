@@ -164,6 +164,8 @@ See [*Continuous deployment*](_docs/deployment.md#continuous-deployment).
 alert; the agent works on its own `on-call/...` branch and cannot push or
 deploy. Try it without side effects: `make on-call ARGS="--once --dry-run"`.
 Prerequisites, permission model and the end-to-end drill: [`on-call-engineer/README.md`](on-call-engineer/README.md).
+A real drill run (alert → agent → tested fix on a branch → incident issue #29) is in
+[`on-call-engineer/examples/2026-11-07-drill/`](on-call-engineer/examples/2026-11-07-drill/).
 
 ## Tests
 
@@ -245,4 +247,4 @@ Rulesmith was built spec-first with a team of coding agents.
 | CI/CD | CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml), unit + integration on PR and push to `main`) → CD to dev ([`.github/workflows/deploy-dev.yml`](.github/workflows/deploy-dev.yml), after CI passes on `main`) → manual prod ([`.github/workflows/promote-prod.yml`](.github/workflows/promote-prod.yml), promotion and rollback by tag); see `_docs/deployment.md` [*Continuous deployment*](_docs/deployment.md#continuous-deployment) |
 | Observability | `src/rulesmith/telemetry.py`, `observability/`, `_docs/observability.md`; see *Observability* |
 | Alerting | `observability/grafana/alerting/rulesmith-alerts.yaml`, failure switch `RULESMITH_FAIL_UPLOADS` + `make simulate-failures` (`scripts/simulate_failures.py`), `_docs/observability.md` *Alerting* |
-| On-call agent | `on-call-engineer/` (`poller.py`, its `README.md`), `make on-call`, role in `_docs/team/on-call-engineer.md`; see *On-call agent* |
+| On-call agent | `on-call-engineer/` (`poller.py`, its `README.md`), `make on-call`, role in `_docs/team/on-call-engineer.md`; real drill run in `on-call-engineer/examples/2026-11-07-drill/` (incident #29); see *On-call agent* |

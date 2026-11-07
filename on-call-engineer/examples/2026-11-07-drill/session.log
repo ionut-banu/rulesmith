@@ -1,0 +1,18 @@
+Resolved. Real bug, not a false positive.
+
+**What fired:** `RulesmithChecksFailing`, critical, local/`dev` — error ratio 1.0, i.e. every upload that passed validation raised and none completed.
+
+**Root cause:** `Upload.stored_path` is a `String` column (`src/rulesmith/models.py:91`), but the previous commit b76b399 ("Simplify Upload.stored_path assignment") started passing the raw `pathlib.Path`. sqlite3 can't bind a `PosixPath`, so `db.commit()` in the `persist_results` span raised `ProgrammingError`; the telemetry wrapper recorded `outcome="error"` and returned 500. Every valid upload took that path — hence 100%. Rejections (bad extension, oversized, unparseable) return before the INSERT, and the alert excludes `outcome="rejected"`, so the ratio read as a clean 1.0.
+
+**Fix:** `4d2d95d` restores `stored_path=str(final_path)` — one line, since the column type is the contract and `routes/runs.py:87` consumes the string fine.
+
+**Test:** `tests/test_uploads_routes.py::test_stored_path_is_persisted_as_a_string` — asserts the 303 and that the persisted value is a `str`. Confirmed failing with `ProgrammingError` before the fix, passing after. Whole suite: 254 passed.
+
+**Issue:** https://github.com/ionut-banu/rulesmith/issues/29
+
+Two things worth your attention:
+
+- b76b399 broke **20 existing tests**, so it was committed without the suite running. The regression test pins the column type, but the gap that let it through is process, not code.
+- Because the file move succeeded while the transaction didn't, each failed upload left an **orphaned file** in `UPLOAD_DIR` with no row pointing at it. The fix stops new ones; existing orphans are untracked files on the local volume. I didn't clean them up or restructure the move/commit ordering — both are beyond this incident's scope, and the ordering question is a design call for a separate issue if you want it.
+
+The fix is committed on `on-call/RulesmithChecksFailing-4e96aff3` and not pushed. No deploy — promotion is yours after review.
