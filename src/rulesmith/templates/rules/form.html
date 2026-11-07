@@ -4,12 +4,13 @@
 
 {% block content %}
     <h2>{{ "Edit rule" if rule else "New rule" }}</h2>
-    <p><a href="/datasets/{{ dataset.id }}">Back to {{ dataset.name }}</a></p>
+    <p class="back-link"><a href="/datasets/{{ dataset.id }}">Back to {{ dataset.name }}</a></p>
 
     {% if error %}
         <p class="error">{{ error }}</p>
     {% endif %}
 
+    <div class="card rule-form">
     <form method="post" action="{{ action }}">
         <label for="name">Name</label>
         <input type="text" id="name" name="name" value="{{ name or '' }}">
@@ -19,4 +20,5 @@
 
         <button type="submit">{{ "Save rule" if rule else "Create rule" }}</button>
     </form>
+    </div>
 {% endblock %}

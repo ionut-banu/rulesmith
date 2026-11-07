@@ -1,8 +1,10 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from rulesmith import failure_switch, telemetry
 from rulesmith.db import get_db, get_engine
@@ -10,6 +12,10 @@ from rulesmith.routes.datasets import router as datasets_router
 from rulesmith.routes.rules import router as rules_router
 from rulesmith.routes.runs import router as runs_router
 from rulesmith.routes.uploads import router as uploads_router
+
+# Resolved from the package, not the working directory: the Docker image runs
+# from /home/app against a non-editable install (like templates_engine).
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
@@ -27,6 +33,7 @@ app.include_router(datasets_router)
 app.include_router(rules_router)
 app.include_router(runs_router)
 app.include_router(uploads_router)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/", include_in_schema=False)

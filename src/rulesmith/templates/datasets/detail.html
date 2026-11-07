@@ -37,10 +37,10 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>No rules yet.</p>
+            <p class="blank-state">No rules yet.</p>
         {% endif %}
 
-        <p><a href="/datasets/{{ dataset.id }}/rules/new">New rule</a></p>
+        <p class="card-action"><a href="/datasets/{{ dataset.id }}/rules/new">New rule</a></p>
     </section>
 
     <section id="trend">
@@ -78,7 +78,7 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>No trend data yet.</p>
+            <p class="blank-state">No trend data yet.</p>
         {% endif %}
     </section>
 
@@ -107,7 +107,7 @@
                 <p class="more-runs-note">Showing the most recent {{ run_rows|length }} runs. There are more runs than shown.</p>
             {% endif %}
         {% else %}
-            <p>No runs yet.</p>
+            <p class="blank-state">No runs yet.</p>
         {% endif %}
     </section>
 {% endblock %}

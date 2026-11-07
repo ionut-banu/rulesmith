@@ -9,6 +9,7 @@
         <p class="error">{{ error }}</p>
     {% endif %}
 
+    <div class="card">
     {% if datasets %}
         <ul class="dataset-list">
             {% for dataset in datasets %}
@@ -18,12 +19,15 @@
             {% endfor %}
         </ul>
     {% else %}
-        <p>No datasets yet. Create one below.</p>
+        <p class="blank-state">No datasets yet. Create one below.</p>
     {% endif %}
+    </div>
 
+    <div class="card">
     <form method="post" action="/datasets">
         <label for="name">Name</label>
         <input type="text" id="name" name="name" value="{{ name or '' }}">
         <button type="submit">Create dataset</button>
     </form>
+    </div>
 {% endblock %}

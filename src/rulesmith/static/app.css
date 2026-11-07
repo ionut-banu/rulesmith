@@ -1,0 +1,810 @@
+/*
+ * Rulesmith app stylesheet. Hand-written, no build step, nothing loaded from
+ * outside the app (system fonts only).
+ *
+ * Colours are defined once as custom properties below and overridden for
+ * dark mode. Every text/background pair is checked for WCAG AA (4.5:1 normal
+ * text); field borders, chart strokes and the focus ring for 3:1.
+ */
+
+:root {
+    color-scheme: light dark;
+
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+        Arial, "Noto Sans", sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+        "Liberation Mono", monospace;
+
+    --bg: #eef1f4;
+    --surface: #ffffff;
+    --surface-sunk: #f4f6f8;
+    --text: #18212b;
+    --muted: #4d5966;
+    --border: #d3d9e0;
+    --field-border: #6f7c8a;
+    --field-bg: #ffffff;
+
+    --accent: #1d5c96;
+    --accent-hover: #164a7a;
+    --on-accent: #ffffff;
+    --focus: #1d5c96;
+
+    --header-bg: #1b2632;
+    --header-text: #f2f5f8;
+    --header-link: #b9d7f5;
+    --header-focus: #8cc4ff;
+
+    --pass-bg: #dff3e6;
+    --pass-text: #165a32;
+    --pass-edge: #2f8a53;
+    --fail-bg: #fbe3e1;
+    --fail-text: #8f1f1a;
+    --fail-edge: #c4352b;
+    --broken-bg: #fbefcf;
+    --broken-text: #6d4500;
+    --broken-edge: #b7791f;
+    --neutral-bg: #e4e8ec;
+    --neutral-text: #3d4853;
+    --neutral-edge: #7d8995;
+
+    --error-bg: #fbe3e1;
+    --error-text: #7d1a15;
+    --error-edge: #c4352b;
+    --danger: #a3241c;
+
+    --chart-axis: #6f7c8a;
+    --chart-line: #1d5c96;
+
+    --radius: 8px;
+    --radius-small: 5px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #10151b;
+        --surface: #171e26;
+        --surface-sunk: #1d2630;
+        --text: #e4e9ee;
+        --muted: #a3afbb;
+        --border: #2c3743;
+        --field-border: #7b8896;
+        --field-bg: #10151b;
+
+        --accent: #7db8ef;
+        --accent-hover: #a2ccf4;
+        --on-accent: #0c1824;
+        --focus: #7db8ef;
+
+        --header-bg: #1f2b38;
+        --header-text: #e4e9ee;
+        --header-link: #a9d0f7;
+        --header-focus: #a9d0f7;
+
+        --pass-bg: #143a24;
+        --pass-text: #a3e6bb;
+        --pass-edge: #3fae6c;
+        --fail-bg: #461b19;
+        --fail-text: #ffb9b2;
+        --fail-edge: #e5584b;
+        --broken-bg: #41300c;
+        --broken-text: #f6d27c;
+        --broken-edge: #d39b2a;
+        --neutral-bg: #26303b;
+        --neutral-text: #c3ccd5;
+        --neutral-edge: #7b8896;
+
+        --error-bg: #3d1716;
+        --error-text: #ffc7c1;
+        --error-edge: #e5584b;
+        --danger: #ff9f96;
+
+        --chart-axis: #7b8896;
+        --chart-line: #7db8ef;
+    }
+}
+
+/* Base */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+a {
+    color: var(--accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+}
+
+a:hover {
+    text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+}
+
+code,
+textarea {
+    font-family: var(--font-mono);
+}
+
+/* Top bar. The nav comes first in the markup; the wordmark is shown first. */
+
+.site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 1.5rem;
+    padding-block: 0.625rem;
+    padding-inline: max(1rem, calc((100% - 60rem) / 2 + 1rem));
+    background: var(--header-bg);
+    color: var(--header-text);
+    border-bottom: 1px solid var(--border);
+}
+
+.site-header h1 {
+    order: -1;
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.site-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+    padding: 0 0.5rem;
+    margin-inline: -0.5rem;
+    border-radius: var(--radius-small);
+    color: var(--header-link);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.site-nav a:hover {
+    text-decoration: underline;
+}
+
+.site-header :focus-visible {
+    outline-color: var(--header-focus);
+}
+
+/* Page column */
+
+.page {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+    overflow-wrap: anywhere;
+}
+
+.page > h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1.75rem;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+}
+
+.page > h2:first-child {
+    margin-bottom: 1rem;
+}
+
+.created-at,
+.run-meta {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.back-link {
+    margin: 0 0 0.75rem;
+    font-size: 0.9375rem;
+}
+
+.run-report-download {
+    margin: 0 0 1rem;
+}
+
+/* Cards */
+
+.page section,
+.card {
+    margin-block: 1rem;
+    padding: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.page section h3 {
+    margin: 0 0 0.875rem;
+    font-size: 1.125rem;
+    line-height: 1.3;
+}
+
+.card > :first-child,
+.page section > :first-child {
+    margin-top: 0;
+}
+
+.card > :last-child,
+.page section > :last-child {
+    margin-bottom: 0;
+}
+
+.blank-state {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-small);
+    color: var(--muted);
+}
+
+.card-action {
+    margin: 1rem 0 0;
+    font-weight: 600;
+}
+
+.more-runs-note {
+    margin: 0.75rem 0 0;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+/* Alerts */
+
+.error {
+    margin-block: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--error-bg);
+    color: var(--error-text);
+    border: 1px solid var(--error-edge);
+    border-left-width: 5px;
+    border-radius: var(--radius-small);
+    font-weight: 500;
+}
+
+/* Forms */
+
+label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+input[type="text"],
+textarea {
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--field-bg);
+    color: var(--text);
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-small);
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+input[type="text"] {
+    font-family: inherit;
+}
+
+textarea {
+    min-height: 7rem;
+    resize: vertical;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+input[type="text"]:focus-visible,
+textarea:focus-visible {
+    outline-offset: 1px;
+    border-color: var(--focus);
+}
+
+input[type="file"] {
+    max-width: 100%;
+    min-height: 2.75rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+    background: var(--field-bg);
+    color: var(--text);
+    border: 1px dashed var(--field-border);
+    border-radius: var(--radius-small);
+    font: inherit;
+    font-size: 0.9375rem;
+}
+
+input[type="file"]::file-selector-button {
+    min-height: 2.25rem;
+    margin-right: 0.75rem;
+    padding: 0 0.75rem;
+    background: var(--surface-sunk);
+    color: var(--text);
+    border: 1px solid var(--field-border);
+    border-radius: 4px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* The two one-field forms: label on its own line, field and button share one. */
+form[action="/datasets"],
+#upload form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+form[action="/datasets"] label,
+#upload form label {
+    flex: 1 0 100%;
+    margin-bottom: 0;
+}
+
+form[action="/datasets"] input,
+#upload form input {
+    flex: 1 1 14rem;
+    min-width: 0;
+}
+
+.rule-form form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.rule-form textarea {
+    margin-bottom: 1rem;
+}
+
+.rule-form input[type="text"] {
+    margin-bottom: 1rem;
+}
+
+.rule-form button {
+    align-self: flex-start;
+}
+
+/* Buttons. Primary by default; Delete and Expand are secondary. */
+
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.125rem;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-small);
+    font: inherit;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+button:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.inline-form {
+    margin: 0;
+}
+
+.inline-form button,
+.expand-failing-rows {
+    min-height: 2.5rem;
+    padding: 0.375rem 0.875rem;
+    background: var(--surface);
+    border-color: var(--field-border);
+}
+
+.inline-form button {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.inline-form button:hover {
+    background: var(--fail-bg);
+    color: var(--fail-text);
+    border-color: var(--danger);
+}
+
+.expand-failing-rows {
+    color: var(--accent);
+}
+
+.expand-failing-rows:hover {
+    background: var(--surface-sunk);
+    border-color: var(--accent);
+}
+
+/* Lists */
+
+.dataset-list,
+.rule-list,
+.run-list,
+.rule-result-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dataset-list li + li,
+.rule-list li + li,
+.run-list li + li,
+.rule-result + .rule-result {
+    border-top: 1px solid var(--border);
+}
+
+.dataset-list a {
+    display: block;
+    padding: 0.625rem 0;
+    font-weight: 600;
+}
+
+/* Rule list: name, Edit, Delete on one line, the expression below. */
+.rule-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+        "name edit delete"
+        "expr expr expr";
+    align-items: center;
+    gap: 0.375rem 0.5rem;
+    padding-block: 0.75rem;
+}
+
+.rule-list li:first-child {
+    padding-top: 0;
+}
+
+.rule-list strong {
+    grid-area: name;
+}
+
+.rule-list code {
+    grid-area: expr;
+    display: block;
+    padding: 0.375rem 0.625rem;
+    background: var(--surface-sunk);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+}
+
+.rule-list a {
+    grid-area: edit;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+    padding: 0 0.5rem;
+    border-radius: var(--radius-small);
+}
+
+.rule-list .inline-form {
+    grid-area: delete;
+}
+
+/* Runs list on the dataset page */
+.run-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    padding-block: 0.625rem;
+}
+
+.run-list li:first-child {
+    padding-top: 0;
+}
+
+.run-list a {
+    flex: 1 1 18rem;
+    min-width: 0;
+    padding-block: 0.25rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Run summary: a banner on the run page, a tag in the runs list. */
+
+.run-summary {
+    background: var(--neutral-bg);
+    color: var(--neutral-text);
+    border: 1px solid var(--neutral-edge);
+    border-radius: var(--radius-small);
+    font-variant-numeric: tabular-nums;
+}
+
+p.run-summary {
+    margin-block: 0 1rem;
+    padding: 0.75rem 1rem;
+    border-left-width: 5px;
+    font-weight: 600;
+}
+
+span.run-summary {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.run-summary--clean {
+    background: var(--pass-bg);
+    color: var(--pass-text);
+    border-color: var(--pass-edge);
+}
+
+.run-summary--not-clean {
+    background: var(--fail-bg);
+    color: var(--fail-text);
+    border-color: var(--fail-edge);
+}
+
+/* Run results: one row per rule, a stripe in the verdict colour on the left. */
+
+.rule-result-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.rule-result-list:not(:has(li)) {
+    display: none;
+}
+
+.rule-result {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.875rem 1rem 0.875rem 0.875rem;
+    border-left: 5px solid var(--neutral-edge);
+}
+
+.rule-result--pass {
+    border-left-color: var(--pass-edge);
+}
+
+.rule-result--fail {
+    border-left-color: var(--fail-edge);
+}
+
+.rule-result--broken {
+    border-left-color: var(--broken-edge);
+}
+
+.rule-result > strong {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+/* Keep the broken reason beside its badge instead of pushed to the right. */
+.rule-result--broken > strong {
+    flex: 0 1 auto;
+}
+
+.verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border: 1px solid;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.verdict-pass {
+    background: var(--pass-bg);
+    color: var(--pass-text);
+    border-color: var(--pass-edge);
+}
+
+.verdict-fail {
+    background: var(--fail-bg);
+    color: var(--fail-text);
+    border-color: var(--fail-edge);
+}
+
+.verdict-broken {
+    background: var(--broken-bg);
+    color: var(--broken-text);
+    border-color: var(--broken-edge);
+}
+
+.counts {
+    color: var(--muted);
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.broken-reason {
+    flex: 1 1 16rem;
+    min-width: 0;
+    font-size: 0.9375rem;
+}
+
+/* Failing rows (swapped in by htmx under the Expand button) */
+
+.failing-rows-container {
+    flex: 1 1 100%;
+    min-width: 0;
+}
+
+.failing-rows-container:empty {
+    display: none;
+}
+
+div.failing-rows {
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-small);
+    background: var(--surface);
+}
+
+.failing-rows-note,
+.failing-rows-empty,
+.failing-rows--not-applicable {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.failing-rows-note {
+    border-bottom: 1px solid var(--border);
+}
+
+.failing-rows--error {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background: var(--error-bg);
+    color: var(--error-text);
+    border: 1px solid var(--error-edge);
+    border-radius: var(--radius-small);
+    font-size: 0.875rem;
+}
+
+.failing-rows-table {
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: normal;
+}
+
+.failing-rows-table th,
+.failing-rows-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.failing-rows-table th {
+    background: var(--surface-sunk);
+    border-bottom: 2px solid var(--field-border);
+    font-weight: 700;
+}
+
+.failing-rows-table td {
+    border-top: 1px solid var(--border);
+}
+
+.failing-rows-table tbody tr:first-child td {
+    border-top: 0;
+}
+
+/* Trend chart */
+
+.trend-description {
+    max-width: 68ch;
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
+}
+
+.trend-chart {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.trend-axis {
+    stroke: var(--chart-axis);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+}
+
+.trend-line {
+    stroke: var(--chart-line);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+}
+
+.trend-point {
+    fill: var(--chart-line);
+    stroke: var(--chart-line);
+    stroke-width: 3px;
+    vector-effect: non-scaling-stroke;
+    cursor: help;
+}
+
+.trend-point:hover {
+    stroke: var(--text);
+}
+
+.trend-legend {
+    margin: 0.75rem 0 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.trend-legend li + li {
+    margin-top: 0.125rem;
+}
+
+/* Phone widths */
+
+@media (max-width: 30rem) {
+    .page {
+        padding-top: 1.25rem;
+    }
+
+    .page > h2 {
+        font-size: 1.5rem;
+    }
+
+    .page section,
+    .card {
+        padding: 1rem;
+    }
+
+    .rule-result {
+        padding-inline: 0.75rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition: none !important;
+        animation: none !important;
+        scroll-behavior: auto !important;
+    }
+}
