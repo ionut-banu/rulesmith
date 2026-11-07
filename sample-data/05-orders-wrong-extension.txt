@@ -1,0 +1,3 @@
+order_id,customer_id,amount,quantity,status,currency,warehouse,city
+ORD-0035,CUST-021,19.99,1,paid,EUR,WH-01,Sampleton
+ORD-0036,CUST-022,45.50,3,shipped,EUR,WH-02,Testville

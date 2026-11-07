@@ -1,0 +1,11 @@
+order_id,customer_id,amount,quantity,status,currency,warehouse,city
+ORD-0011,CUST-009,24.99,2,paid,EUR,WH-01,Sampleton
+ORD-0012,CUST-003,58.00,4,shipped,EUR,WH-02,Testville
+ORD-0013,CUST-010,0.00,1,paid,EUR,WH-01,Sampleton
+ORD-0014,CUST-011,9.95,1,shipped,EUR,WH-03,Exampleburg
+ORD-0015,CUST-004,31.20,0,paid,EUR,WH-02,Sampleton
+ORD-0016,CUST-012,14.75,3,refunded,EUR,WH-01,Testville
+ORD-0017,CUST-013,-5.00,150,shipped,EUR,WH-03,Sampleton
+ORD-0018,CUST-005,72.30,7,paid,EUR,WH-02,Exampleburg
+ORD-0019,CUST-014,18.60,2,shipped,EUR,WH-01,Sampleton
+ORD-0020,CUST-015,40.00,5,paid,EUR,WH-03,Testville

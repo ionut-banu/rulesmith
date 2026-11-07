@@ -49,6 +49,14 @@ are kept as a history.
 - There is no login. Rulesmith is a single shared workspace (a deliberate v1
   simplification; see `_docs/plan.md`).
 
+## Try it
+
+[`sample-data/README.md`](sample-data/README.md) is a five-minute walkthrough
+with small synthetic files and exact expected results. Run it locally (see
+*Running locally*) or on https://rulesmith-dev.fly.dev or
+https://rulesmith-prod.fly.dev. The live apps are shared and public, and
+nothing can be deleted there, so upload only the synthetic sample files.
+
 ## Architecture
 
 - **Backend:** Python, FastAPI, SQLAlchemy
@@ -240,8 +248,8 @@ Rulesmith was built spec-first with a team of coding agents.
 | Product specification | `_docs/plan.md` + GitHub issues with acceptance criteria and agent comments |
 | Agent team | `_docs/team/`, `_docs/process.md`, `.claude/agents/` |
 | Context management | `AGENTS.md` → `_docs/` |
-| Application | FastAPI + Jinja2/HTMX + SQLite (dev/tests) or Postgres (`RULESMITH_DATABASE_URL`); see *Running locally* |
-| Testing | `tests/` (unit), `tests/integration/` (integration against Docker Compose); `make test`, `make test-integration`, `make test-all` |
+| Application | FastAPI + Jinja2/HTMX + SQLite (dev/tests) or Postgres (`RULESMITH_DATABASE_URL`); see *Running locally*; sample files and walkthrough in `sample-data/` (see *Try it*) |
+| Testing | `tests/` (unit, including `tests/test_sample_data.py`, which keeps the `sample-data/` walkthrough true), `tests/integration/` (integration against Docker Compose); `make test`, `make test-integration`, `make test-all` |
 | Containerization | `Dockerfile`, `docker-compose.yaml`, `Makefile`; see *Running with Docker* |
 | Deployment | `deploy/fly.dev.toml`, `deploy/fly.prod.toml`, `_docs/deployment.md` (Fly.io dev + prod, Neon Postgres); see *Deployment* |
 | CI/CD | CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml), unit + integration on PR and push to `main`) → CD to dev ([`.github/workflows/deploy-dev.yml`](.github/workflows/deploy-dev.yml), after CI passes on `main`) → manual prod ([`.github/workflows/promote-prod.yml`](.github/workflows/promote-prod.yml), promotion and rollback by tag); see `_docs/deployment.md` [*Continuous deployment*](_docs/deployment.md#continuous-deployment) |
